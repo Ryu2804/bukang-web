@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import PhotoUpload from "../components/Capture/PhotoUpload";
 import StudentForm from "../components/Capture/StudentForm";
 import type { OverlayResult } from "../services/overlay";
+import { apiUrl } from "../services/api";
 
 interface StudentData {
   nrp: string;
@@ -59,7 +60,7 @@ export default function Capture() {
       const formData = new FormData();
       formData.append("file", photo.file);
 
-      const uploadRes = await fetch("/api/students/upload-photo", {
+      const uploadRes = await fetch(apiUrl("/students/upload-photo"), {
         method: "POST",
         headers,
         body: formData,
@@ -81,7 +82,7 @@ export default function Capture() {
         photo_url: photoUrl,
       };
 
-      const submitRes = await fetch("/api/students/submissions", {
+      const submitRes = await fetch(apiUrl("/students/submissions"), {
         method: "POST",
         headers: { "Content-Type": "application/json", ...headers },
         body: JSON.stringify(payload),

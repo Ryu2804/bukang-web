@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Search, X, Loader2 } from "lucide-react";
+import { apiUrl } from "../../services/api";
 
 interface Props {
   initialNrp?: string;
@@ -63,7 +64,7 @@ export default function StudentForm({
       const headers: Record<string, string> = {};
       if (token) headers["Authorization"] = `Bearer ${token}`;
 
-      const res = await fetch(`/api/students/nrp/${nrp}`, { headers });
+      const res = await fetch(apiUrl(`/students/nrp/${nrp}`), { headers });
       const body = await res.json();
 
       if (!body.success) {

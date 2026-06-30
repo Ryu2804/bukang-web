@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import LoginModal from "../components/Login";
 import { downloadAll } from "../utils/export";
+import { apiUrl } from "../services/api";
 
 interface RosterEntry {
   nrp: string;
@@ -243,7 +244,7 @@ export default function Mahasiswa() {
       const params = new URLSearchParams({ page: String(p), per_page: "20", search: s });
       if (m) params.set("major", m);
       if (st) params.set("status", st);
-      const res = await fetch(`/api/students/roster?${params}`, { headers });
+      const res = await fetch(apiUrl(`/students/roster?${params}`), { headers });
       if (res.status === 401) {
         setUnauthorized(true);
         if (mountedRef.current) setLoading(false);
