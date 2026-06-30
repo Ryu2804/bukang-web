@@ -13,67 +13,59 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Push to Hugging Face Space
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install huggingface_hub
+
+      - name: Deploy to Hugging Face Spaces
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE_OWNER: ${{ secrets.HF_SPACE_OWNER }}
+          HF_SPACE_NAME: ${{ secrets.HF_SPACE_NAME }}
         run: |
-          echo "=== CLI environment and workspace ==="
-          pwd
-          echo "=== Content of backend/ ==="
-          ls -la backend/
+          python -c '
+          import os
+          from huggingface_hub import HfApi
 
-          SPACE="${{ secrets.HF_SPACE_OWNER }}/${{ secrets.HF_SPACE_NAME }}"
-          git clone --depth=1 "https://user:${HF_TOKEN}@huggingface.co/spaces/${SPACE}" space-repo
+          readme_content = """---
+          title: Bukang Backend
+          emoji: 🚀
+          colorFrom: blue
+          colorTo: green
+          sdk: docker
+          pinned: false
+          app_port: 7860
+          ---
+          """
+          # Strip leading indentation
+          readme_content = "\n".join(line.lstrip() for line in readme_content.strip().split("\n"))
 
-          echo "=== Content of space-repo after clone ==="
-          ls -la space-repo/
+          with open("backend/README.md", "w") as f:
+              f.write(readme_content)
 
-          rm -rf space-repo/*
-          rm -f space-repo/.gitignore space-repo/.gitattributes
+          token = os.environ.get("HF_TOKEN")
+          owner = os.environ.get("HF_SPACE_OWNER")
+          name = os.environ.get("HF_SPACE_NAME")
 
-          echo "=== Content of space-repo after cleanup ==="
-          ls -la space-repo/
+          if not token or not owner or not name:
+              raise ValueError("HF_TOKEN, HF_SPACE_OWNER, and HF_SPACE_NAME secrets must be set.")
 
-          shopt -s dotglob
-          cp -r backend/* space-repo/
-          shopt -u dotglob
+          space_id = f"{owner}/{name}"
+          api = HfApi(token=token)
 
-          rm -rf space-repo/.venv space-repo/.pytest_cache
-
-          cat > space-repo/README.md << 'EOF'
----
-title: Bukang Backend
-emoji: 🚀
-colorFrom: blue
-colorTo: green
-sdk: docker
-pinned: false
-app_port: 7860
----
-EOF
-
-          echo "=== Files in space-repo before git operations ==="
-          ls -la space-repo/
-          echo "--- app/ content ---"
-          ls -la space-repo/app/ 2>/dev/null || echo "app/ MISSING!"
-          echo "--- Dockerfile ---"
-          head -3 space-repo/Dockerfile 2>/dev/null || echo "Dockerfile MISSING!"
-
-          cd space-repo
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git config user.name "github-actions[bot]"
-          git checkout -b main || git checkout main
-          
-          echo "=== Git status before git add ==="
-          git status
-
-          git add -A
-          
-          echo "=== Git status after git add ==="
-          git status
-          
-          echo "=== Git diff --cached --stat ==="
-          git diff --cached --stat
-
-          git diff --cached --quiet || git commit -m "Deploy ${{ github.sha }}"
-          git push -f origin main
+          print(f"Uploading backend folder to Space: {space_id}")
+          api.upload_folder(
+              folder_path="backend",
+              repo_id=space_id,
+              repo_type="space",
+              ignore_patterns=[".venv/*", ".pytest_cache/*", "__pycache__/*", "*.db", "*.pyc", "tests/*", "uploads/*"],
+              delete_patterns=["*"]
+          )
+          print("Deployment successful!")
+          '
