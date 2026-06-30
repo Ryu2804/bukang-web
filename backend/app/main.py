@@ -82,6 +82,13 @@ app.include_router(auth.router)
 app.include_router(students.router)
 
 
+@app.get("/")
+def root():
+    return JSONResponse(
+        content={"message": "Bukang API is running", "docs": "/docs"}
+    )
+
+
 @app.get(
     "/api/health",
     tags=["health"],

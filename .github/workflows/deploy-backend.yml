@@ -19,8 +19,16 @@ jobs:
         run: |
           SPACE="${{ secrets.HF_SPACE_OWNER }}/${{ secrets.HF_SPACE_NAME }}"
           git clone --depth=1 "https://user:${HF_TOKEN}@huggingface.co/spaces/${SPACE}" space-repo
+
           rm -rf space-repo/*
+          rm -f space-repo/.gitignore space-repo/.gitattributes
+
+          shopt -s dotglob
           cp -r backend/* space-repo/
+          shopt -u dotglob
+
+          rm -rf space-repo/.venv space-repo/.pytest_cache
+
           cat > space-repo/README.md << 'EOF'
 ---
 title: Bukang Backend
@@ -32,6 +40,14 @@ pinned: false
 app_port: 7860
 ---
 EOF
+
+          echo "=== Files pushed to Space ==="
+          ls -la space-repo/
+          echo "--- app/ content ---"
+          ls -la space-repo/app/ 2>/dev/null || echo "app/ MISSING!"
+          echo "--- Dockerfile ---"
+          head -3 space-repo/Dockerfile 2>/dev/null || echo "Dockerfile MISSING!"
+
           cd space-repo
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
