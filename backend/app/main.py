@@ -45,9 +45,14 @@ app = FastAPI(
     swagger_ui_parameters={"persistAuthorization": True},
 )
 
+origins = (
+    settings.cors_origins.split(",")
+    if settings.cors_origins != "*"
+    else ["*"]
+)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

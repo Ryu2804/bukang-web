@@ -1,0 +1,9 @@
+.venv
+__pycache__
+*.pyc
+.git
+.env
+.env.*
+bukang.db
+.pytest_cache
+.venv/

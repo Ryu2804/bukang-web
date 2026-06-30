@@ -1,24 +1,14 @@
-import os
-import uuid as uuid_lib
-from datetime import datetime, timezone
-
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.infrastructure.persistence.models.student import StudentModel as Student
+from app.infrastructure.storage.hf_storage import storage_service
 from app.presentation.schemas.student import SubmissionRequest
 
-UPLOAD_DIR = "uploads"
 
 def save_photo(file: UploadFile) -> str:
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
-    ext = os.path.splitext(file.filename or "photo.jpg")[1] or ".jpg"
-    filename = f"{uuid_lib.uuid4().hex}{ext}"
-    path = os.path.join(UPLOAD_DIR, filename)
     content = file.file.read()
-    with open(path, "wb") as f:
-        f.write(content)
-    return f"/uploads/{filename}"
+    return storage_service.upload_photo(content, file.filename or "photo.jpg")
 
 
 def create_submission(db: Session, user_id: str, data: SubmissionRequest) -> Student:
