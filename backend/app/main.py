@@ -1,15 +1,17 @@
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.core.logging import setup_logging
 from app.db.base import Base
 from app.db.session import engine
-from app.routers import auth, students
-from app.schemas.response import error, success
+from app.presentation.routers import auth, students
+from app.presentation.schemas.response import error, success
 
 tags_metadata = [
     {
@@ -40,6 +42,7 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
     openapi_tags=tags_metadata,
+    swagger_ui_parameters={"persistAuthorization": True},
 )
 
 app.add_middleware(
@@ -66,6 +69,9 @@ def generic_exception_handler(_: Request, exc: Exception):
         content=error("Internal server error", 500),
     )
 
+
+os.makedirs("uploads", exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 app.include_router(auth.router)
 app.include_router(students.router)
