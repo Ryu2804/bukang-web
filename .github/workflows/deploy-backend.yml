@@ -17,11 +17,22 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
+          echo "=== CLI environment and workspace ==="
+          pwd
+          echo "=== Content of backend/ ==="
+          ls -la backend/
+
           SPACE="${{ secrets.HF_SPACE_OWNER }}/${{ secrets.HF_SPACE_NAME }}"
           git clone --depth=1 "https://user:${HF_TOKEN}@huggingface.co/spaces/${SPACE}" space-repo
 
+          echo "=== Content of space-repo after clone ==="
+          ls -la space-repo/
+
           rm -rf space-repo/*
           rm -f space-repo/.gitignore space-repo/.gitattributes
+
+          echo "=== Content of space-repo after cleanup ==="
+          ls -la space-repo/
 
           shopt -s dotglob
           cp -r backend/* space-repo/
@@ -41,7 +52,7 @@ app_port: 7860
 ---
 EOF
 
-          echo "=== Files pushed to Space ==="
+          echo "=== Files in space-repo before git operations ==="
           ls -la space-repo/
           echo "--- app/ content ---"
           ls -la space-repo/app/ 2>/dev/null || echo "app/ MISSING!"
@@ -52,6 +63,17 @@ EOF
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
           git checkout -b main || git checkout main
+          
+          echo "=== Git status before git add ==="
+          git status
+
           git add -A
+          
+          echo "=== Git status after git add ==="
+          git status
+          
+          echo "=== Git diff --cached --stat ==="
+          git diff --cached --stat
+
           git diff --cached --quiet || git commit -m "Deploy ${{ github.sha }}"
           git push -f origin main
