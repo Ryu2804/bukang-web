@@ -2,14 +2,18 @@ import { useState, useEffect } from "react";
 import { Search, X, Loader2 } from "lucide-react";
 import { apiUrl } from "../../services/api";
 
+interface FormData {
+  asalDaerah: string;
+  hobi: string[];
+  firstImpression: string;
+}
+
 interface Props {
   initialNrp?: string;
+  initialForm?: FormData;
+  editMode?: boolean;
   onResolved: (data: { nrp: string; name: string; major: string }) => void;
-  onFormChange: (data: {
-    asalDaerah: string;
-    hobi: string[];
-    firstImpression: string;
-  }) => void;
+  onFormChange: (data: FormData) => void;
   onNext: () => void;
 }
 
@@ -34,6 +38,8 @@ const HOBI_OPTIONS = [
 
 export default function StudentForm({
   initialNrp,
+  initialForm,
+  editMode = false,
   onResolved,
   onFormChange,
   onNext,
@@ -41,9 +47,9 @@ export default function StudentForm({
   const [nrp, setNrp] = useState(initialNrp ?? "");
   const [name, setName] = useState("");
   const [major, setMajor] = useState("");
-  const [asalDaerah, setAsalDaerah] = useState("");
-  const [hobi, setHobi] = useState<string[]>([]);
-  const [firstImpression, setFirstImpression] = useState("");
+  const [asalDaerah, setAsalDaerah] = useState(initialForm?.asalDaerah ?? "");
+  const [hobi, setHobi] = useState<string[]>(initialForm?.hobi ?? []);
+  const [firstImpression, setFirstImpression] = useState(initialForm?.firstImpression ?? "");
   const [hobiInput, setHobiInput] = useState("");
   const [showHobiSuggestions, setShowHobiSuggestions] = useState(false);
   const [loading, setLoading] = useState(false);

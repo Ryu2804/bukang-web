@@ -82,6 +82,26 @@ def get_student(db: Session, user_id: str, student_id: str) -> Student:
     return student
 
 
+def get_submission_by_id(db: Session, user_id: str, submission_id: str) -> Student:
+    return get_student(db, user_id, submission_id)
+
+
+def update_submission(db: Session, user_id: str, submission_id: str, data: SubmissionRequest) -> Student:
+    student = get_submission_by_id(db, user_id, submission_id)
+
+    student.hometown = data.asal_daerah
+    student.hobbies = ",".join(data.hobi)
+    student.first_impression = data.first_impression
+    student.longitude = data.longitude
+    student.latitude = data.latitude
+    student.captured_at = data.captured_at
+    student.photo_url = data.photo_url
+
+    db.commit()
+    db.refresh(student)
+    return student
+
+
 def search_students_by_nrp(db: Session, user_id: str, nrp: str) -> list[Student]:
     return (
         db.query(Student)

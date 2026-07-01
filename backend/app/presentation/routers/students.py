@@ -90,6 +90,43 @@ def list_students(
 
 
 @router.get(
+    "/submissions/{submission_id}",
+    summary="Get a single submission by ID",
+    responses={
+        200: {"description": "Submission found"},
+        404: {"description": "Submission not found"},
+        **common_error,
+    },
+)
+def get_submission(
+    submission_id: str,
+    db: Session = Depends(get_db),
+    user_id: str = Depends(get_current_user),
+):
+    student = student_use_case.get_submission_by_id(db, user_id, submission_id)
+    return success(student)
+
+
+@router.put(
+    "/submissions/{submission_id}",
+    summary="Update an existing submission",
+    responses={
+        200: {"description": "Submission updated"},
+        404: {"description": "Submission not found"},
+        **common_error,
+    },
+)
+def update_submission(
+    submission_id: str,
+    data: SubmissionRequest,
+    db: Session = Depends(get_db),
+    user_id: str = Depends(get_current_user),
+):
+    student = student_use_case.update_submission(db, user_id, submission_id, data)
+    return success(student)
+
+
+@router.get(
     "/roster",
     summary="Get full roster (NRP map + submission status) with pagination",
 )

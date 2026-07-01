@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, memo, useRef } from "react";
-import { Search, Grid3X3, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, User, LogIn, X, MapPin, Calendar, Heart, MessageCircle, Hash, FileDown, Loader2 } from "lucide-react";
+import { Search, Grid3X3, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, User, LogIn, X, MapPin, Calendar, Heart, MessageCircle, Hash, FileDown, Loader2, Pencil } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import LoginModal from "../components/Login";
@@ -107,6 +107,7 @@ const EntryCard = memo(function EntryCard({ entry, onClick, onCapture }: { entry
 });
 
 function ProfileModal({ entry, onClose }: { entry: RosterEntry; onClose: () => void }) {
+  const navigate = useNavigate();
   const coords = entry.latitude && entry.longitude
     ? `${entry.latitude.toFixed(6)}, ${entry.longitude.toFixed(6)}`
     : null;
@@ -188,7 +189,15 @@ function ProfileModal({ entry, onClose }: { entry: RosterEntry; onClose: () => v
             )}
           </div>
 
-          {!entry.submitted && (
+          {entry.submitted ? (
+            <button
+              onClick={() => { onClose(); navigate(`/capture?submission_id=${entry.submission_id}`); }}
+              className="mt-5 w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2 text-sm"
+            >
+              <Pencil size={15} />
+              Edit Data
+            </button>
+          ) : (
             <div className="mt-5 p-3 bg-gray-50 rounded-lg text-center text-sm text-gray-400">
               Data diri belum terkumpul
             </div>

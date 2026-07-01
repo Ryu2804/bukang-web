@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ArrowLeft, Send } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ArrowLeft, Send, Pencil } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import PhotoUpload from "../components/Capture/PhotoUpload";
 import StudentForm from "../components/Capture/StudentForm";
@@ -18,13 +18,34 @@ interface FormData {
   firstImpression: string;
 }
 
+interface ExistingSubmission {
+  id: string;
+  nrp: string;
+  name: string;
+  major: string;
+  hometown: string;
+  hobbies: string;
+  first_impression: string;
+  photo_url: string;
+  longitude: number;
+  latitude: number;
+  captured_at: string;
+}
+
 export default function Capture() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialNrp = searchParams.get("nrp") || "";
-  const [step, setStep] = useState(1);
+  const submissionId = searchParams.get("submission_id") || "";
+  const isEditing = !!submissionId;
+
+  const [step, setStep] = useState(isEditing ? 2 : 1);
   const [photo, setPhoto] = useState<OverlayResult | null>(null);
   const [student, setStudent] = useState<StudentData | null>(null);
+  const [existingPhotoUrl, setExistingPhotoUrl] = useState("");
+  const [existingLat, setExistingLat] = useState(0);
+  const [existingLng, setExistingLng] = useState(0);
+  const [existingCapturedAt, setExistingCapturedAt] = useState("");
   const [form, setForm] = useState<FormData>({
     asalDaerah: "",
     hobi: [],
@@ -33,6 +54,38 @@ export default function Capture() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [loadingExisting, setLoadingExisting] = useState(isEditing);
+
+  useEffect(() => {
+    if (!isEditing) return;
+    (async () => {
+      try {
+        const token = localStorage.getItem("access_token");
+        const headers: Record<string, string> = {};
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
+        const res = await fetch(apiUrl(`/students/submissions/${submissionId}`), { headers });
+        const body = await res.json();
+        if (!body.success) throw new Error(body.data?.detail || "Gagal memuat data");
+
+        const sub: ExistingSubmission = body.data;
+        setStudent({ nrp: sub.nrp, name: sub.name, major: sub.major });
+        setForm({
+          asalDaerah: sub.hometown || "",
+          hobi: sub.hobbies ? sub.hobbies.split(",") : [],
+          firstImpression: sub.first_impression || "",
+        });
+        setExistingPhotoUrl(sub.photo_url || "");
+        setExistingLat(sub.latitude);
+        setExistingLng(sub.longitude);
+        setExistingCapturedAt(sub.captured_at);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Gagal memuat data");
+      } finally {
+        setLoadingExisting(false);
+      }
+    })();
+  }, [isEditing, submissionId]);
 
   const handlePhotoCaptured = (data: OverlayResult) => {
     setPhoto(data);
@@ -48,7 +101,7 @@ export default function Capture() {
   };
 
   const handleSubmit = async () => {
-    if (!photo || !student) return;
+    if (!student) return;
     setSubmitting(true);
     setError("");
 
@@ -57,33 +110,48 @@ export default function Capture() {
       const headers: Record<string, string> = {};
       if (token) headers["Authorization"] = `Bearer ${token}`;
 
-      const formData = new FormData();
-      formData.append("file", photo.file);
+      let photoUrl = existingPhotoUrl;
+      let longitude = existingLng;
+      let latitude = existingLat;
+      let capturedAt = existingCapturedAt;
 
-      const uploadRes = await fetch(apiUrl("/students/upload-photo"), {
-        method: "POST",
-        headers,
-        body: formData,
-      });
-      const uploadBody = await uploadRes.json();
-      if (!uploadBody.success) {
-        throw new Error(uploadBody.data?.detail || "Upload gagal");
+      if (photo) {
+        const formData = new FormData();
+        formData.append("file", photo.file);
+
+        const uploadRes = await fetch(apiUrl("/students/upload-photo"), {
+          method: "POST",
+          headers,
+          body: formData,
+        });
+        const uploadBody = await uploadRes.json();
+        if (!uploadBody.success) {
+          throw new Error(uploadBody.data?.detail || "Upload gagal");
+        }
+        photoUrl = uploadBody.data.photo_url;
+        longitude = photo.geotag.longitude;
+        latitude = photo.geotag.latitude;
+        capturedAt = photo.geotag.timestamp;
       }
-      const photoUrl = uploadBody.data.photo_url;
 
       const payload = {
         nrp: student.nrp,
         asal_daerah: form.asalDaerah,
         hobi: form.hobi,
         first_impression: form.firstImpression,
-        longitude: photo.geotag.longitude,
-        latitude: photo.geotag.latitude,
-        captured_at: photo.geotag.timestamp,
+        longitude,
+        latitude,
+        captured_at: capturedAt,
         photo_url: photoUrl,
       };
 
-      const submitRes = await fetch(apiUrl("/students/submissions"), {
-        method: "POST",
+      const endpoint = isEditing
+        ? apiUrl(`/students/submissions/${submissionId}`)
+        : apiUrl("/students/submissions");
+      const method = isEditing ? "PUT" : "POST";
+
+      const submitRes = await fetch(endpoint, {
+        method,
         headers: { "Content-Type": "application/json", ...headers },
         body: JSON.stringify(payload),
       });
@@ -105,19 +173,29 @@ export default function Capture() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="bg-white p-8 rounded-lg shadow-md text-center max-w-md mx-4">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Send size={28} className="text-green-600" />
+            {isEditing ? <Pencil size={28} className="text-green-600" /> : <Send size={28} className="text-green-600" />}
           </div>
-          <h2 className="text-2xl font-bold mb-2">Data Berhasil Dikirim!</h2>
+          <h2 className="text-2xl font-bold mb-2">
+            {isEditing ? "Data Berhasil Diperbarui!" : "Data Berhasil Dikirim!"}
+          </h2>
           <p className="text-gray-600 mb-6">
-            Terima kasih, data profil Anda telah tersimpan.
+            {isEditing ? "Perubahan data profil telah tersimpan." : "Terima kasih, data profil Anda telah tersimpan."}
           </p>
           <button
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/mahasiswa")}
             className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600"
           >
-            Kembali ke Beranda
+            Kembali ke Mahasiswa
           </button>
         </div>
+      </div>
+    );
+  }
+
+  if (loadingExisting) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="text-gray-500">Memuat data...</p>
       </div>
     );
   }
@@ -134,7 +212,7 @@ export default function Capture() {
           </button>
           <div className="flex items-center gap-2 text-sm">
             {[
-              { num: 1, label: "Foto" },
+              { num: 1, label: isEditing ? "Foto *" : "Foto" },
               { num: 2, label: "Profil" },
               { num: 3, label: "Kirim" },
             ].map((s) => (
@@ -161,6 +239,11 @@ export default function Capture() {
               </div>
             ))}
           </div>
+          {isEditing && (
+            <span className="ml-auto text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-medium">
+              Mode Edit
+            </span>
+          )}
         </div>
       </div>
 
@@ -178,6 +261,8 @@ export default function Capture() {
         {step === 2 && (
           <StudentForm
             initialNrp={initialNrp}
+            initialForm={isEditing ? form : undefined}
+            editMode={isEditing}
             onResolved={handleStudentResolved}
             onFormChange={handleFormChange}
             onNext={() => setStep(3)}
@@ -188,17 +273,21 @@ export default function Capture() {
           <div className="bg-white p-6 rounded-lg shadow-md">
             <h2 className="text-xl font-bold mb-4">Ringkasan Data</h2>
             <div className="space-y-3 mb-6">
-              {photo && (
+              {(photo || existingPhotoUrl) && (
                 <div>
-                  <p className="text-sm text-gray-500">Foto</p>
+                  <p className="text-sm text-gray-500">
+                    Foto {isEditing && !photo && "(sebelumnya)"}
+                  </p>
                   <img
-                    src={photo.dataUrl}
+                    src={photo ? photo.dataUrl : existingPhotoUrl}
                     alt="Preview"
                     className="w-full max-h-60 object-contain rounded-lg mt-1 border"
                   />
                   <div className="flex items-center gap-1 text-xs text-gray-400 mt-1">
                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                    {photo.geotag.latitude.toFixed(6)}, {photo.geotag.longitude.toFixed(6)}
+                    {photo
+                      ? `${photo.geotag.latitude.toFixed(6)}, ${photo.geotag.longitude.toFixed(6)}`
+                      : `${existingLat.toFixed(6)}, ${existingLng.toFixed(6)}`}
                   </div>
                 </div>
               )}
@@ -240,7 +329,7 @@ export default function Capture() {
               disabled={submitting}
               className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              {submitting ? "Mengirim..." : "Kirim Data"}
+              {submitting ? "Menyimpan..." : isEditing ? "Simpan Perubahan" : "Kirim Data"}
             </button>
           </div>
         )}

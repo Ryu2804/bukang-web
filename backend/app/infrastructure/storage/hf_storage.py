@@ -29,7 +29,7 @@ class StorageService:
             token=self.token,
         )
 
-        return f"https://huggingface.co/buckets/{self.bucket_name}/{path_in_bucket}"
+        return f"https://huggingface.co/buckets/{self.bucket_name}/resolve/{path_in_bucket}"
 
     def _upload_local(self, file_content: bytes, filename: str) -> str:
         import os
