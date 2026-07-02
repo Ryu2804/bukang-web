@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { apiUrl } from "../services/api";
+import { apiUrl, authFetch } from "../services/api";
 
 interface ExportRow {
   nrp: string;
@@ -19,12 +19,9 @@ export async function fetchAllEntries(
   major: string,
   status: string,
 ): Promise<ExportRow[]> {
-  const token = localStorage.getItem("access_token");
-  const headers: Record<string, string> = {};
-  if (token) headers["Authorization"] = `Bearer ${token}`;
   const params = new URLSearchParams({ search, major, status, all: "true" });
-  const res = await fetch(apiUrl(`/students/roster?${params}`), { headers });
-  if (!res.ok) throw new Error("Gagal mengambil data");
+  const res = await authFetch(apiUrl(`/students/roster?${params}`));
+  if (!res.ok && res.status !== 401) throw new Error("Gagal mengambil data");
   const body = await res.json();
   if (!body.success) throw new Error("Gagal mengambil data");
 

@@ -19,6 +19,36 @@ class ApiError extends Error {
   }
 }
 
+let onUnauthorized: (() => void) | null = null;
+
+export function setOnUnauthorized(handler: (() => void) | null) {
+  onUnauthorized = handler;
+}
+
+function handleUnauthorized() {
+  localStorage.removeItem("access_token");
+  localStorage.removeItem("username");
+  onUnauthorized?.();
+  window.location.href = "/";
+}
+
+export function authHeaders(): Record<string, string> {
+  const token = localStorage.getItem("access_token");
+  const headers: Record<string, string> = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  return headers;
+}
+
+export async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  const headers: Record<string, string> = {
+    ...authHeaders(),
+    ...(options.headers as Record<string, string>),
+  };
+  const res = await fetch(url, { ...options, headers });
+  if (res.status === 401) handleUnauthorized();
+  return res;
+}
+
 async function request<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -36,6 +66,8 @@ async function request<T>(
     ...options,
     headers,
   });
+
+  if (res.status === 401) handleUnauthorized();
 
   const body: ApiResponse<T> = await res.json();
 

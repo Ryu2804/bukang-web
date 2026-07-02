@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Search, X, Loader2 } from "lucide-react";
-import { apiUrl } from "../../services/api";
+import { apiUrl, authFetch } from "../../services/api";
 
 interface FormData {
   asalDaerah: string;
@@ -64,11 +64,7 @@ export default function StudentForm({
     setNrpError("");
 
     try {
-      const token = localStorage.getItem("access_token");
-      const headers: Record<string, string> = {};
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-
-      const res = await fetch(apiUrl(`/students/nrp/${nrp}`), { headers });
+      const res = await authFetch(apiUrl(`/students/nrp/${nrp}`));
       const body = await res.json();
 
       if (!body.success) {
@@ -194,25 +190,37 @@ export default function StudentForm({
           Hobi
         </label>
         <div className="relative">
-          <input
-            type="text"
-            value={hobiInput}
-            onChange={(e) => {
-              setHobiInput(e.target.value);
-              setShowHobiSuggestions(true);
-            }}
-            onFocus={() => setShowHobiSuggestions(true)}
-            onBlur={() => setTimeout(() => setShowHobiSuggestions(false), 200)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={hobiInput}
+              onChange={(e) => {
+                setHobiInput(e.target.value);
+                setShowHobiSuggestions(true);
+              }}
+              onFocus={() => setShowHobiSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowHobiSuggestions(false), 200)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const trimmed = hobiInput.trim();
+                  if (trimmed) addHobi(trimmed);
+                }
+              }}
+              placeholder="Ketik hobi lalu Enter"
+              className="flex-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              type="button"
+              onClick={() => {
                 const trimmed = hobiInput.trim();
                 if (trimmed) addHobi(trimmed);
-              }
-            }}
-            placeholder="Ketik hobi lalu Enter"
-            className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+              }}
+              className="sm:hidden px-3 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600"
+            >
+              Tambah
+            </button>
+          </div>
           {showHobiSuggestions && hobiInput && hobiSuggestions.length > 0 && (
             <div className="absolute z-10 w-full bg-white border rounded-lg mt-1 shadow-lg max-h-40 overflow-y-auto">
               {hobiSuggestions.map((h) => (

@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import PhotoUpload from "../components/Capture/PhotoUpload";
 import StudentForm from "../components/Capture/StudentForm";
 import type { OverlayResult } from "../services/overlay";
-import { apiUrl } from "../services/api";
+import { apiUrl, authFetch, authHeaders } from "../services/api";
 
 interface StudentData {
   nrp: string;
@@ -60,11 +60,7 @@ export default function Capture() {
     if (!isEditing) return;
     (async () => {
       try {
-        const token = localStorage.getItem("access_token");
-        const headers: Record<string, string> = {};
-        if (token) headers["Authorization"] = `Bearer ${token}`;
-
-        const res = await fetch(apiUrl(`/students/submissions/${submissionId}`), { headers });
+        const res = await authFetch(apiUrl(`/students/submissions/${submissionId}`));
         const body = await res.json();
         if (!body.success) throw new Error(body.data?.detail || "Gagal memuat data");
 
@@ -106,9 +102,7 @@ export default function Capture() {
     setError("");
 
     try {
-      const token = localStorage.getItem("access_token");
-      const headers: Record<string, string> = {};
-      if (token) headers["Authorization"] = `Bearer ${token}`;
+      const hdrs = authHeaders();
 
       let photoUrl = existingPhotoUrl;
       let longitude = existingLng;
@@ -119,9 +113,9 @@ export default function Capture() {
         const formData = new FormData();
         formData.append("file", photo.file);
 
-        const uploadRes = await fetch(apiUrl("/students/upload-photo"), {
+        const uploadRes = await authFetch(apiUrl("/students/upload-photo"), {
           method: "POST",
-          headers,
+          headers: hdrs,
           body: formData,
         });
         const uploadBody = await uploadRes.json();
@@ -150,9 +144,9 @@ export default function Capture() {
         : apiUrl("/students/submissions");
       const method = isEditing ? "PUT" : "POST";
 
-      const submitRes = await fetch(endpoint, {
+      const submitRes = await authFetch(endpoint, {
         method,
-        headers: { "Content-Type": "application/json", ...headers },
+        headers: { "Content-Type": "application/json", ...hdrs },
         body: JSON.stringify(payload),
       });
       const submitBody = await submitRes.json();

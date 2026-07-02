@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
-import { request } from "../services/api";
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import { request, setOnUnauthorized } from "../services/api";
 
 interface AuthState {
   token: string | null;
@@ -48,6 +48,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("username");
     setState({ token: null, username: null });
   }, []);
+
+  useEffect(() => {
+    setOnUnauthorized(logout);
+    return () => setOnUnauthorized(null);
+  }, [logout]);
 
   return (
     <AuthContext.Provider

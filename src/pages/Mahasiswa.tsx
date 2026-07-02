@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import LoginModal from "../components/Login";
 import { downloadAll } from "../utils/export";
-import { apiUrl } from "../services/api";
+import { apiUrl, authFetch } from "../services/api";
 
 interface RosterEntry {
   nrp: string;
@@ -247,18 +247,11 @@ export default function Mahasiswa() {
     setLoading(true);
     setUnauthorized(false);
     try {
-      const token = localStorage.getItem("access_token");
-      const headers: Record<string, string> = {};
-      if (token) headers["Authorization"] = `Bearer ${token}`;
       const params = new URLSearchParams({ page: String(p), per_page: "20", search: s });
       if (m) params.set("major", m);
       if (st) params.set("status", st);
-      const res = await fetch(apiUrl(`/students/roster?${params}`), { headers });
-      if (res.status === 401) {
-        setUnauthorized(true);
-        if (mountedRef.current) setLoading(false);
-        return;
-      }
+      const res = await authFetch(apiUrl(`/students/roster?${params}`));
+      if (res.status === 401) return;
       const body = await res.json();
       if (body.success && mountedRef.current) setData(body.data);
     } catch {
