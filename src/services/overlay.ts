@@ -1,3 +1,5 @@
+import exifr from "exifr";
+
 export interface GeotagInfo {
   latitude: number;
   longitude: number;
@@ -109,18 +111,42 @@ function drawPreviewPin(ctx: CanvasRenderingContext2D, cx: number, cy: number, r
 export async function applyOverlay(
   imageData: string,
   originalFileName: string,
-  info: GeotagInfo
+  info: GeotagInfo,
+  originalFile?: File
 ): Promise<OverlayResult> {
   const img = await loadImage(imageData);
-  const W = img.naturalWidth;
-  const H = img.naturalHeight;
+  let srcW = img.naturalWidth;
+  let srcH = img.naturalHeight;
+
+  let orientation = 1;
+  if (originalFile) {
+    try {
+      const ori = await exifr.orientation(originalFile);
+      if (ori && ori >= 1 && ori <= 8) orientation = ori;
+    } catch {}
+  }
+
+  const swap = orientation >= 5 && orientation <= 8;
+  const W = swap ? srcH : srcW;
+  const H = swap ? srcW : srcH;
 
   const canvas = document.createElement("canvas");
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext("2d")!;
 
+  ctx.save();
+  switch (orientation) {
+    case 2: ctx.translate(W, 0); ctx.scale(-1, 1); break;
+    case 3: ctx.translate(W, H); ctx.rotate(Math.PI); break;
+    case 4: ctx.translate(0, H); ctx.scale(1, -1); break;
+    case 5: ctx.translate(H, 0); ctx.scale(-1, 1); ctx.rotate(Math.PI / 2); break;
+    case 6: ctx.translate(H, 0); ctx.rotate(Math.PI / 2); break;
+    case 7: ctx.translate(0, W); ctx.scale(1, -1); ctx.rotate(-Math.PI / 2); break;
+    case 8: ctx.translate(0, W); ctx.rotate(-Math.PI / 2); break;
+  }
   ctx.drawImage(img, 0, 0);
+  ctx.restore();
 
   const overlayH = Math.round(H * 0.2);
   const overlayY = H - overlayH;

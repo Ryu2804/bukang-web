@@ -11,7 +11,6 @@ interface FormData {
 interface Props {
   initialNrp?: string;
   initialForm?: FormData;
-  editMode?: boolean;
   onResolved: (data: { nrp: string; name: string; major: string }) => void;
   onFormChange: (data: FormData) => void;
   onNext: () => void;
@@ -39,7 +38,6 @@ const HOBI_OPTIONS = [
 export default function StudentForm({
   initialNrp,
   initialForm,
-  editMode = false,
   onResolved,
   onFormChange,
   onNext,
@@ -206,10 +204,7 @@ export default function StudentForm({
             onFocus={() => setShowHobiSuggestions(true)}
             onBlur={() => setTimeout(() => setShowHobiSuggestions(false), 200)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && hobiInput.trim()) {
-                e.preventDefault();
-                addHobi(hobiInput.trim());
-              }
+              if (e.key === "Enter") e.preventDefault();
             }}
             placeholder="Ketik hobi lalu Enter"
             className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"

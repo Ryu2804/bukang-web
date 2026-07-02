@@ -262,7 +262,6 @@ export default function Capture() {
           <StudentForm
             initialNrp={initialNrp}
             initialForm={isEditing ? form : undefined}
-            editMode={isEditing}
             onResolved={handleStudentResolved}
             onFormChange={handleFormChange}
             onNext={() => setStep(3)}

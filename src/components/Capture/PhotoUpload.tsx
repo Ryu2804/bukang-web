@@ -67,7 +67,7 @@ export default function PhotoUpload({ onCaptured }: Props) {
         timestamp: ts,
         address: geo.address,
         heading: geo.heading,
-      });
+      }, file);
 
       setGeotag(result.geotag);
       setOverlayPreview(result.dataUrl);
