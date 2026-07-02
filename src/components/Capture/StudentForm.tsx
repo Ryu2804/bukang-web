@@ -204,7 +204,11 @@ export default function StudentForm({
             onFocus={() => setShowHobiSuggestions(true)}
             onBlur={() => setTimeout(() => setShowHobiSuggestions(false), 200)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") e.preventDefault();
+              if (e.key === "Enter") {
+                e.preventDefault();
+                const trimmed = hobiInput.trim();
+                if (trimmed) addHobi(trimmed);
+              }
             }}
             placeholder="Ketik hobi lalu Enter"
             className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"

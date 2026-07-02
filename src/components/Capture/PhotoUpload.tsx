@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from "react";
-import { Camera, Upload, Video, ImageIcon, MapPin, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { Camera, Upload, Video, ImageIcon, MapPin, CheckCircle, AlertCircle, Loader2, RefreshCw } from "lucide-react";
 import { getCurrentPosition, reverseGeocode } from "../../services/geocode";
 import { applyOverlay, type GeotagInfo, type OverlayResult } from "../../services/overlay";
 
@@ -23,11 +23,35 @@ export default function PhotoUpload({ onCaptured }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("environment");
+  const [cameraStreaming, setCameraStreaming] = useState(false);
+
+  const switchCamera = useCallback(async () => {
+    const next = facingMode === "environment" ? "user" : "environment";
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: next, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      setFacingMode(next);
+      setCameraStreaming(true);
+      if (videoRef.current) videoRef.current.srcObject = stream;
+    } catch {
+      alert("Kamera " + (next === "user" ? "depan" : "belakang") + " tidak tersedia");
+    }
+  }, [facingMode]);
+
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     }
+    setCameraStreaming(false);
   }, []);
 
   useEffect(() => stopCamera, [stopCamera]);
@@ -41,6 +65,7 @@ export default function PhotoUpload({ onCaptured }: Props) {
         audio: false,
       });
       streamRef.current = stream;
+      setCameraStreaming(true);
       if (videoRef.current) videoRef.current.srcObject = stream;
     } catch {
       alert("Kamera tidak dapat diakses. Gunakan mode Upload.");
@@ -261,13 +286,33 @@ export default function PhotoUpload({ onCaptured }: Props) {
         <div className="space-y-3">
           <div className="relative bg-black rounded-lg overflow-hidden">
             <video ref={videoRef} autoPlay playsInline className="w-full max-h-80 object-contain" />
+            {cameraStreaming && (
+              <button
+                onClick={switchCamera}
+                className="absolute top-2 right-2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors"
+                title="Putar kamera"
+              >
+                <RefreshCw size={20} />
+              </button>
+            )}
           </div>
-          <button
-            onClick={captureFrame}
-            className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 flex items-center justify-center gap-2"
-          >
-            <Camera size={20} /> Ambil Foto
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={captureFrame}
+              className="flex-1 bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 flex items-center justify-center gap-2"
+            >
+              <Camera size={20} /> Ambil Foto
+            </button>
+            {cameraStreaming && (
+              <button
+                onClick={switchCamera}
+                className="px-4 py-3 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 flex items-center justify-center"
+                title="Putar kamera"
+              >
+                <RefreshCw size={20} />
+              </button>
+            )}
+          </div>
         </div>
       )}
 
