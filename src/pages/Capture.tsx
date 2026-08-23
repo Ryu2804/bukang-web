@@ -1,10 +1,14 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, Send, Pencil } from "lucide-react";
+import { ArrowLeft, Send, Pencil, CheckCircle2 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import PhotoUpload from "../components/Capture/PhotoUpload";
 import StudentForm from "../components/Capture/StudentForm";
 import type { OverlayResult } from "../services/overlay";
 import { apiUrl, authFetch, authHeaders } from "../services/api";
+import { normalizeHometown } from "../utils/location";
+import { reverseOSM } from "../services/osm";
+import { useAuth } from "../context/AuthContext";
+import Breadcrumb, { buildCaptureBreadcrumb } from "../components/Breadcrumb";
 
 interface StudentData {
   nrp: string;
@@ -34,10 +38,18 @@ interface ExistingSubmission {
 
 export default function Capture() {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [searchParams] = useSearchParams();
   const initialNrp = searchParams.get("nrp") || "";
   const submissionId = searchParams.get("submission_id") || "";
   const isEditing = !!submissionId;
+
+  // Jika unauthorized, ProtectedRoute sudah redirect, tapi jaga-jaga untuk token expiry saat di page
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate(`/auth?redirect=${encodeURIComponent("/capture" + (initialNrp ? `?nrp=${initialNrp}` : ""))}&reason=unauthorized`, { replace: true });
+    }
+  }, [isAuthenticated, navigate, initialNrp]);
 
   const [step, setStep] = useState(isEditing ? 2 : 1);
   const [photo, setPhoto] = useState<OverlayResult | null>(null);
@@ -61,6 +73,10 @@ export default function Capture() {
     (async () => {
       try {
         const res = await authFetch(apiUrl(`/students/submissions/${submissionId}`));
+        if (res.status === 401) {
+          navigate(`/auth?redirect=${encodeURIComponent(`/capture?submission_id=${submissionId}`)}&reason=unauthorized`, { replace: true });
+          return;
+        }
         const body = await res.json();
         if (!body.success) throw new Error(body.data?.detail || "Gagal memuat data");
 
@@ -83,9 +99,25 @@ export default function Capture() {
     })();
   }, [isEditing, submissionId]);
 
-  const handlePhotoCaptured = (data: OverlayResult) => {
+  const handlePhotoCaptured = async (data: OverlayResult) => {
     setPhoto(data);
     setStep(2);
+    // OSM: auto-isi Asal Daerah dari koordinat foto jika masih kosong — langsung terintegrasi
+    if (!form.asalDaerah.trim()) {
+      try {
+        const rev = await reverseOSM(data.geotag.latitude, data.geotag.longitude);
+        if (rev?.label) {
+          // rev.label sudah format Kota, Provinsi via OSM + normalize
+          setForm((prev) => (prev.asalDaerah ? prev : { ...prev, asalDaerah: rev.label }));
+        }
+      } catch {
+        // fallback: gunakan heading dari geotag (kota) kalau OSM gagal
+        if (data.geotag.heading) {
+          const fallback = normalizeHometown(data.geotag.heading);
+          if (fallback) setForm((prev) => (prev.asalDaerah ? prev : { ...prev, asalDaerah: fallback }));
+        }
+      }
+    }
   };
 
   const handleStudentResolved = (data: StudentData) => {
@@ -118,6 +150,10 @@ export default function Capture() {
           headers: hdrs,
           body: formData,
         });
+        if (uploadRes.status === 401) {
+          navigate(`/auth?redirect=${encodeURIComponent("/capture" + (initialNrp ? `?nrp=${initialNrp}` : ""))}&reason=unauthorized`, { replace: true });
+          return;
+        }
         const uploadBody = await uploadRes.json();
         if (!uploadBody.success) {
           throw new Error(uploadBody.data?.detail || "Upload gagal");
@@ -130,7 +166,7 @@ export default function Capture() {
 
       const payload = {
         nrp: student.nrp,
-        asal_daerah: form.asalDaerah,
+        asal_daerah: normalizeHometown(form.asalDaerah),
         hobi: form.hobi,
         first_impression: form.firstImpression,
         longitude,
@@ -149,6 +185,10 @@ export default function Capture() {
         headers: { "Content-Type": "application/json", ...hdrs },
         body: JSON.stringify(payload),
       });
+      if (submitRes.status === 401) {
+        navigate(`/auth?redirect=${encodeURIComponent("/capture" + (initialNrp ? `?nrp=${initialNrp}` : ""))}&reason=unauthorized`, { replace: true });
+        return;
+      }
       const submitBody = await submitRes.json();
       if (!submitBody.success) {
         throw new Error(submitBody.data?.detail || "Gagal menyimpan data");
@@ -164,23 +204,39 @@ export default function Capture() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-md text-center max-w-md mx-4">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            {isEditing ? <Pencil size={28} className="text-green-600" /> : <Send size={28} className="text-green-600" />}
+      <div className="min-h-screen bg-gray-50">
+        <div className="container mx-auto px-4 py-4 max-w-2xl">
+          <Breadcrumb items={buildCaptureBreadcrumb(step, isEditing, { status: "success" })} className="mb-4" />
+        </div>
+        <div className="flex items-center justify-center px-4">
+          <div className="bg-white p-8 rounded-lg shadow-md text-center max-w-md w-full">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              {isEditing ? <Pencil size={28} className="text-green-600" /> : <Send size={28} className="text-green-600" />}
+            </div>
+            <h2 className="text-2xl font-bold mb-2">
+              {isEditing ? "Data Berhasil Diperbarui!" : "Data Berhasil Dikirim!"}
+            </h2>
+            <p className="text-gray-600 mb-2">
+              {isEditing ? "Perubahan data profil telah tersimpan." : "Terima kasih, data profil Anda telah tersimpan."}
+            </p>
+            <p className="text-xs text-green-600 bg-green-50 border border-green-200 rounded-lg px-3 py-2 mb-6 flex items-center justify-center gap-1.5">
+              <CheckCircle2 size={14} /> {isEditing ? "Update" : "Capture"} Success
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => navigate("/mahasiswa")}
+                className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600"
+              >
+                Kembali ke Mahasiswa
+              </button>
+              <button
+                onClick={() => navigate("/")}
+                className="bg-white border border-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-50 text-sm"
+              >
+                Ke Beranda
+              </button>
+            </div>
           </div>
-          <h2 className="text-2xl font-bold mb-2">
-            {isEditing ? "Data Berhasil Diperbarui!" : "Data Berhasil Dikirim!"}
-          </h2>
-          <p className="text-gray-600 mb-6">
-            {isEditing ? "Perubahan data profil telah tersimpan." : "Terima kasih, data profil Anda telah tersimpan."}
-          </p>
-          <button
-            onClick={() => navigate("/mahasiswa")}
-            className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600"
-          >
-            Kembali ke Mahasiswa
-          </button>
         </div>
       </div>
     );
@@ -188,14 +244,35 @@ export default function Capture() {
 
   if (loadingExisting) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500">Memuat data...</p>
+      <div className="min-h-screen bg-gray-50">
+        <div className="container mx-auto px-4 py-4 max-w-2xl">
+          <Breadcrumb
+            items={[
+              { label: "Beranda", href: "/" },
+              { label: isEditing ? "Edit" : "Capture", href: "/capture" },
+              { label: "Memuat...", status: "active" },
+            ]}
+            className="mb-4"
+          />
+        </div>
+        <div className="flex items-center justify-center py-20">
+          <p className="text-gray-500">Memuat data...</p>
+        </div>
       </div>
     );
   }
 
+  const breadcrumbItems = error
+    ? buildCaptureBreadcrumb(step, isEditing, { status: "error", message: error })
+    : buildCaptureBreadcrumb(step, isEditing);
+
   return (
     <div className="min-h-screen bg-gray-50">
+      <div className="bg-white shadow-sm border-b">
+        <div className="container mx-auto px-4 py-2 max-w-2xl">
+          <Breadcrumb items={breadcrumbItems} />
+        </div>
+      </div>
       <div className="bg-white shadow-sm border-b">
         <div className="container mx-auto px-4 py-3 flex items-center gap-3">
           <button

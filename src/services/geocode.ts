@@ -5,6 +5,8 @@ export interface GeocodeResult {
   address: string;
 }
 
+import { apiUrl } from "./api";
+
 export function getCurrentPosition(options?: PositionOptions): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
@@ -27,10 +29,25 @@ export function getCurrentPosition(options?: PositionOptions): Promise<Geolocati
 }
 
 export async function reverseGeocode(lat: number, lng: number): Promise<GeocodeResult> {
+  // Coba backend proxy dulu (lebih taat policy Nominatim & ada cache), fallback ke direct
+  try {
+    const proxyRes = await fetch(apiUrl(`/locations/reverse?lat=${lat}&lon=${lng}`));
+    if (proxyRes.ok) {
+      const body = await proxyRes.json();
+      const data = body.data ?? body;
+      if (data && data.address) {
+        return { lat, lng, heading: data.heading || data.city || "Lokasi", address: data.address };
+      }
+      if (data && data.label) {
+        // backend mengembalikan label Kota, Provinsi — pakai sebagai heading juga
+        return { lat, lng, heading: data.city || data.heading || "Lokasi", address: data.address || data.label };
+      }
+    }
+  } catch {
+    // ignore, fallback ke direct
+  }
   const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=id`;
-  const res = await fetch(url, {
-    headers: { "User-Agent": "BukangApp/1.0" },
-  });
+  const res = await fetch(url);
   if (!res.ok) throw new Error("Gagal mengambil data alamat");
   const data = await res.json();
   const addr = data.address || {};

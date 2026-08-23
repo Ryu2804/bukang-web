@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 import { request, setOnUnauthorized } from "../services/api";
+import { isTokenExpired, getTokenExpiryMs, clearAuthStorage } from "../utils/jwt";
 
 interface AuthState {
   token: string | null;
@@ -17,10 +18,13 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 function getInitialState(): AuthState {
   if (typeof window === "undefined") return { token: null, username: null };
-  return {
-    token: localStorage.getItem("access_token"),
-    username: localStorage.getItem("username"),
-  };
+  const token = localStorage.getItem("access_token");
+  const username = localStorage.getItem("username");
+  if (token && isTokenExpired(token)) {
+    clearAuthStorage();
+    return { token: null, username: null };
+  }
+  return { token, username };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -44,8 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("username");
+    clearAuthStorage();
     setState({ token: null, username: null });
   }, []);
 
@@ -54,11 +57,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => setOnUnauthorized(null);
   }, [logout]);
 
+  // Auto-logout when JWT expires: check on mount, on token change, on
+  // visibility change, and schedule a timeout exactly at exp.
+  useEffect(() => {
+    if (!state.token) return;
+
+    if (isTokenExpired(state.token)) {
+      logout();
+      return;
+    }
+
+    const expiryMs = getTokenExpiryMs(state.token);
+    let timeoutId: number | undefined;
+
+    if (expiryMs !== null) {
+      const delay = expiryMs - Date.now();
+      if (delay <= 0) {
+        logout();
+        return;
+      }
+      timeoutId = window.setTimeout(() => {
+        logout();
+      }, delay);
+    }
+
+    // Fallback polling every 60s + check when tab becomes visible again
+    const intervalId = window.setInterval(() => {
+      if (state.token && isTokenExpired(state.token)) {
+        logout();
+      }
+    }, 60_000);
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible" && state.token && isTokenExpired(state.token)) {
+        logout();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [state.token, logout]);
+
+  const isAuthenticated = state.token !== null && !isTokenExpired(state.token);
+
   return (
     <AuthContext.Provider
       value={{
         ...state,
-        isAuthenticated: state.token !== null,
+        isAuthenticated,
         login,
         register,
         logout,

@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.infrastructure.persistence.models.student import StudentModel as Student
 from app.infrastructure.storage.hf_storage import storage_service
 from app.presentation.schemas.student import SubmissionRequest
+from app.utils.location import normalize_hometown
 
 
 def save_photo(file: UploadFile) -> str:
@@ -22,12 +23,13 @@ def create_submission(db: Session, user_id: str, data: SubmissionRequest) -> Stu
     else:
         major = "Unknown"
 
+    hometown_normalized = normalize_hometown(data.asal_daerah) or data.asal_daerah
     student = Student(
         user_id=user_id,
         nrp=data.nrp,
         name=name,
         major=major,
-        hometown=data.asal_daerah,
+        hometown=hometown_normalized,
         hobbies=",".join(data.hobi),
         first_impression=data.first_impression,
         longitude=data.longitude,
@@ -89,17 +91,32 @@ def get_submission_by_id(db: Session, user_id: str, submission_id: str) -> Stude
 def update_submission(db: Session, user_id: str, submission_id: str, data: SubmissionRequest) -> Student:
     student = get_submission_by_id(db, user_id, submission_id)
 
-    student.hometown = data.asal_daerah
+    student.hometown = normalize_hometown(data.asal_daerah) or data.asal_daerah
     student.hobbies = ",".join(data.hobi)
     student.first_impression = data.first_impression
     student.longitude = data.longitude
     student.latitude = data.latitude
     student.captured_at = data.captured_at
     student.photo_url = data.photo_url
+    # Ensure NRP immutability: do not allow changing NRP via update
+    # but keep name/major in sync if needed
+    student.name = find_name_from_nrp(student.nrp)
+    if student.nrp[2] == "2" and student.nrp[3] == "5":
+        student.major = "Teknik Informatika"
+    elif student.nrp[2] == "5" and student.nrp[3] == "3":
+        student.major = "Rekayasa Perangkat Lunak"
+    elif student.nrp[2] == "5" and student.nrp[3] == "4":
+        student.major = "Rekayasa Kecerdasan Artifisial"
 
     db.commit()
     db.refresh(student)
     return student
+
+
+def delete_submission(db: Session, user_id: str, submission_id: str) -> None:
+    student = get_submission_by_id(db, user_id, submission_id)
+    db.delete(student)
+    db.commit()
 
 
 def search_students_by_nrp(db: Session, user_id: str, nrp: str) -> list[Student]:

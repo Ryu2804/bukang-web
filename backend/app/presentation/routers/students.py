@@ -126,6 +126,24 @@ def update_submission(
     return success(student)
 
 
+@router.delete(
+    "/submissions/{submission_id}",
+    summary="Delete a submission",
+    responses={
+        200: {"description": "Submission deleted"},
+        404: {"description": "Submission not found"},
+        **common_error,
+    },
+)
+def delete_submission(
+    submission_id: str,
+    db: Session = Depends(get_db),
+    user_id: str = Depends(get_current_user),
+):
+    student_use_case.delete_submission(db, user_id, submission_id)
+    return success({"deleted_id": submission_id})
+
+
 @router.get(
     "/roster",
     summary="Get full roster (NRP map + submission status) with pagination",

@@ -1,10 +1,13 @@
 import { useState, useEffect, useCallback, useMemo, memo, useRef } from "react";
-import { Search, Grid3X3, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, User, LogIn, X, MapPin, Calendar, Heart, MessageCircle, Hash, FileDown, Loader2, Pencil } from "lucide-react";
+import { Search, Grid3X3, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, User, X, MapPin, Calendar, Heart, MessageCircle, Hash, FileDown, Loader2, Pencil, LogIn } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
-import LoginModal from "../components/Login";
+import EditSubmissionModal from "../components/Mahasiswa/EditSubmissionModal";
 import { downloadAll } from "../utils/export";
 import { apiUrl, authFetch } from "../services/api";
+import { parseHometown } from "../utils/location";
+import { useAuth } from "../context/AuthContext";
+import Breadcrumb from "../components/Breadcrumb";
 
 interface RosterEntry {
   nrp: string;
@@ -106,8 +109,7 @@ const EntryCard = memo(function EntryCard({ entry, onClick, onCapture }: { entry
   );
 });
 
-function ProfileModal({ entry, onClose }: { entry: RosterEntry; onClose: () => void }) {
-  const navigate = useNavigate();
+function ProfileModal({ entry, onClose, onEdit }: { entry: RosterEntry; onClose: () => void; onEdit: (e: RosterEntry) => void }) {
   const coords = entry.latitude && entry.longitude
     ? `${entry.latitude.toFixed(6)}, ${entry.longitude.toFixed(6)}`
     : null;
@@ -172,9 +174,26 @@ function ProfileModal({ entry, onClose }: { entry: RosterEntry; onClose: () => v
           </div>
 
           <div className="mt-5 space-y-3">
-            {entry.submitted && entry.hometown && (
-              <InfoRow icon={<MapPin size={16} />} label="Asal Daerah" value={entry.hometown} />
-            )}
+            {entry.submitted && entry.hometown && (() => {
+              const parsed = parseHometown(entry.hometown);
+              if (parsed) {
+                return (
+                  <div className="flex items-start gap-2.5">
+                    <div className="mt-0.5 text-blue-500 shrink-0"><MapPin size={16} /></div>
+                    <div className="min-w-0">
+                      <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Asal Daerah</p>
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <span className="inline-flex items-center gap-1.5 bg-blue-600 text-white text-xs px-2.5 py-1 rounded-full font-medium shadow-sm">
+                          <MapPin size={12} /> {parsed.label}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">{parsed.city} · Provinsi {parsed.province}</p>
+                    </div>
+                  </div>
+                );
+              }
+              return <InfoRow icon={<MapPin size={16} />} label="Asal Daerah" value={entry.hometown} />;
+            })()}
             {entry.submitted && entry.hobbies && (
               <InfoRow icon={<Heart size={16} />} label="Hobi" value={entry.hobbies} />
             )}
@@ -191,11 +210,11 @@ function ProfileModal({ entry, onClose }: { entry: RosterEntry; onClose: () => v
 
           {entry.submitted ? (
             <button
-              onClick={() => { onClose(); navigate(`/capture?submission_id=${entry.submission_id}`); }}
-              className="mt-5 w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2 text-sm"
+              onClick={() => onEdit(entry)}
+              className="mt-5 w-full bg-blue-600 text-white py-2.5 rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 text-sm font-medium shadow-sm"
             >
               <Pencil size={15} />
-              Edit Data
+              Edit / Hapus Foto
             </button>
           ) : (
             <div className="mt-5 p-3 bg-gray-50 rounded-lg text-center text-sm text-gray-400">
@@ -224,6 +243,7 @@ type StatusFilter = "" | "submitted" | "pending";
 
 export default function Mahasiswa() {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [data, setData] = useState<RosterData | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -232,7 +252,7 @@ export default function Mahasiswa() {
   const [majorFilter, setMajorFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("");
   const [selectedEntry, setSelectedEntry] = useState<RosterEntry | null>(null);
-  const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [editEntry, setEditEntry] = useState<RosterEntry | null>(null);
   const [unauthorized, setUnauthorized] = useState(false);
   const [exporting, setExporting] = useState<"csv" | "xlsx" | null>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout>>(null);
@@ -244,6 +264,12 @@ export default function Mahasiswa() {
   }, []);
 
   const fetchRoster = useCallback(async (p: number, s: string, m: string, st: StatusFilter) => {
+    // Jika sudah tidak auth, langsung arahkan ke halaman login/signup sendiri
+    if (!isAuthenticated) {
+      setUnauthorized(true);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setUnauthorized(false);
     try {
@@ -251,15 +277,23 @@ export default function Mahasiswa() {
       if (m) params.set("major", m);
       if (st) params.set("status", st);
       const res = await authFetch(apiUrl(`/students/roster?${params}`));
-      if (res.status === 401) return;
+      if (res.status === 401) {
+        setUnauthorized(true);
+        // Arahkan ke halaman auth dengan redirect balik ke /mahasiswa
+        navigate(`/auth?redirect=${encodeURIComponent("/mahasiswa")}&reason=unauthorized`, { replace: true });
+        return;
+      }
       const body = await res.json();
       if (body.success && mountedRef.current) setData(body.data);
+      else if (body.success === false && (body.data as any)?.detail?.toLowerCase?.().includes("unauthorized")) {
+        setUnauthorized(true);
+      }
     } catch {
       // ignore
     } finally {
       if (mountedRef.current) setLoading(false);
     }
-  }, []);
+  }, [isAuthenticated, navigate]);
 
   useEffect(() => {
     fetchRoster(page, search, majorFilter, statusFilter);
@@ -311,7 +345,37 @@ export default function Mahasiswa() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar onLoginClick={() => setIsLoginOpen(true)} />
+      <Navbar />
+      <div className="bg-white border-b">
+        <div className="container mx-auto px-4 py-3 max-w-6xl">
+          <Breadcrumb
+            items={
+              unauthorized
+                ? [
+                    { label: "Beranda", href: "/" },
+                    { label: "Mahasiswa", href: "/mahasiswa", status: "active" },
+                    { label: "Perlu Login", status: "error" },
+                  ]
+                : loading
+                  ? [
+                      { label: "Beranda", href: "/" },
+                      { label: "Mahasiswa", status: "active" },
+                      { label: "Memuat...", status: "active" },
+                    ]
+                  : data && data.submitted_count === data.total
+                    ? [
+                        { label: "Beranda", href: "/" },
+                        { label: "Mahasiswa", status: "active" },
+                        { label: "Semua Terkumpul", status: "success" },
+                      ]
+                    : [
+                        { label: "Beranda", href: "/" },
+                        { label: "Mahasiswa", status: "active" },
+                      ]
+            }
+          />
+        </div>
+      </div>
 
       <div className="container mx-auto px-4 py-6 max-w-6xl">
         <div className="flex items-center justify-between gap-3 mb-6">
@@ -371,16 +435,72 @@ export default function Mahasiswa() {
           </div>
         )}
 
-        <div className="relative max-w-md mb-3">
-          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-          <input
-            type="text"
-            value={searchInput}
-            onChange={handleSearchInput}
-            placeholder="Cari NRP atau nama..."
-            className="w-full pl-10 pr-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-          />
-        </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (searchTimer.current) clearTimeout(searchTimer.current);
+            setPage(1);
+            setSearch(searchInput);
+          }}
+          className="relative max-w-md mb-3 flex gap-2"
+        >
+          <div className="relative flex-1">
+            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <input
+              type="text"
+              value={searchInput}
+              onChange={handleSearchInput}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || (e as any).keyCode === 13) {
+                  e.preventDefault();
+                  if (searchTimer.current) clearTimeout(searchTimer.current);
+                  setPage(1);
+                  setSearch(searchInput);
+                }
+                if (e.key === "Escape") {
+                  setSearchInput("");
+                  setSearch("");
+                  setPage(1);
+                }
+              }}
+              placeholder="Cari NRP atau nama..."
+              enterKeyHint="search"
+              inputMode="search"
+              autoComplete="off"
+              autoCapitalize="off"
+              autoCorrect="off"
+              className="w-full pl-10 pr-10 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white min-h-[44px]"
+            />
+            {searchInput && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchInput("");
+                  setSearch("");
+                  setPage(1);
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+                aria-label="Hapus pencarian"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+          <button
+            type="submit"
+            className="px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium min-h-[44px] min-w-[64px] flex items-center justify-center gap-1.5 sm:hidden"
+            aria-label="Cari"
+          >
+            <Search size={16} /> Cari
+          </button>
+          <button
+            type="submit"
+            className="hidden sm:flex px-4 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium min-h-[44px] items-center gap-1.5"
+          >
+            <Search size={16} /> Cari
+          </button>
+        </form>
+        <p className="text-[11px] text-gray-400 mb-3 sm:hidden">Di HP: ketik lalu tekan Enter / Cari</p>
 
         <div className="flex flex-wrap items-center gap-2 mb-6">
           <span className="text-xs text-gray-400 font-medium mr-1">Status:</span>
@@ -423,13 +543,23 @@ export default function Mahasiswa() {
               <LogIn size={28} className="text-gray-400" />
             </div>
             <h2 className="text-lg font-semibold mb-2">Login Diperlukan</h2>
-            <p className="text-sm text-gray-500 mb-4">Silakan login untuk melihat data mahasiswa</p>
-            <button
-              onClick={() => setIsLoginOpen(true)}
-              className="bg-blue-500 text-white px-5 py-2 rounded-lg hover:bg-blue-600 text-sm"
-            >
-              Login Sekarang
-            </button>
+            <p className="text-sm text-gray-500 mb-4">
+              Silakan login untuk melihat data mahasiswa. Kamu akan diarahkan ke halaman login/signup.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                onClick={() => navigate("/auth?redirect=%2Fmahasiswa&reason=unauthorized")}
+                className="bg-blue-600 text-white px-6 py-2.5 rounded-xl hover:bg-blue-700 text-sm font-medium shadow-sm"
+              >
+                Login / Sign Up
+              </button>
+              <button
+                onClick={() => navigate("/auth?redirect=%2Fmahasiswa&mode=signup&reason=unauthorized")}
+                className="bg-white border border-gray-300 text-gray-700 px-6 py-2.5 rounded-xl hover:bg-gray-50 text-sm font-medium"
+              >
+                Buat Akun Baru
+              </button>
+            </div>
           </div>
         )}
 
@@ -511,9 +641,21 @@ export default function Mahasiswa() {
         )}
       </div>
       {selectedEntry && (
-        <ProfileModal entry={selectedEntry} onClose={() => setSelectedEntry(null)} />
+        <ProfileModal
+          entry={selectedEntry}
+          onClose={() => setSelectedEntry(null)}
+          onEdit={(e) => {
+            setSelectedEntry(null);
+            setEditEntry(e);
+          }}
+        />
       )}
-      <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} />
+      <EditSubmissionModal
+        isOpen={!!editEntry}
+        entry={editEntry}
+        onClose={() => setEditEntry(null)}
+        onSuccess={() => fetchRoster(page, search, majorFilter, statusFilter)}
+      />
     </div>
   );
 }

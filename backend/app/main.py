@@ -10,7 +10,7 @@ from app.config import settings
 from app.core.logging import setup_logging
 from app.db.base import Base
 from app.db.session import engine
-from app.presentation.routers import auth, students
+from app.presentation.routers import auth, students, locations
 from app.presentation.schemas.response import error, success
 
 tags_metadata = [
@@ -25,6 +25,10 @@ tags_metadata = [
     {
         "name": "students",
         "description": "Student CRUD operations",
+    },
+    {
+        "name": "locations",
+        "description": "OSM Nominatim — lokasi terintegrasi (Kota, Provinsi)",
     },
 ]
 
@@ -80,6 +84,7 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 app.include_router(auth.router)
 app.include_router(students.router)
+app.include_router(locations.router)
 
 
 @app.get("/")

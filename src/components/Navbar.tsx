@@ -2,10 +2,22 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Camera, Grid3X3 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
-export default function Navbar({ onLoginClick }: { onLoginClick: () => void }) {
+export default function Navbar() {
   const { isAuthenticated, username, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const handleLogin = () => {
+    navigate(`/auth?redirect=${encodeURIComponent(location.pathname + location.search)}`);
+  };
+
+  const handleProtectedNav = (path: string) => {
+    if (!isAuthenticated) {
+      navigate(`/auth?redirect=${encodeURIComponent(path)}&reason=unauthorized`);
+      return;
+    }
+    navigate(path);
+  };
 
   return (
     <nav className="bg-white-800 px-4 py-3 relative z-10">
@@ -18,7 +30,7 @@ export default function Navbar({ onLoginClick }: { onLoginClick: () => void }) {
         </div>
         <div className="hidden sm:flex items-center gap-4">
           <button
-            onClick={() => navigate("/capture")}
+            onClick={() => handleProtectedNav("/capture")}
             className={`text-sm flex items-center gap-1 ${
               location.pathname === "/capture"
                 ? "text-blue-600 font-medium"
@@ -29,7 +41,7 @@ export default function Navbar({ onLoginClick }: { onLoginClick: () => void }) {
             Capture
           </button>
           <button
-            onClick={() => navigate("/mahasiswa")}
+            onClick={() => handleProtectedNav("/mahasiswa")}
             className={`text-sm flex items-center gap-1 ${
               location.pathname === "/mahasiswa"
                 ? "text-blue-600 font-medium"
@@ -53,7 +65,7 @@ export default function Navbar({ onLoginClick }: { onLoginClick: () => void }) {
         ) : (
           <button
             className="bg-blue-500 text-white text-sm sm:text-base px-3 sm:px-4 py-1.5 sm:py-2 rounded hover:bg-blue-600"
-            onClick={onLoginClick}
+            onClick={handleLogin}
           >
             Login
           </button>

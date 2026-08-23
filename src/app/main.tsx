@@ -5,6 +5,8 @@ import "./index.css";
 import Home from "../pages/Home";
 import Capture from "../pages/Capture";
 import Mahasiswa from "../pages/Mahasiswa";
+import Auth from "../pages/Auth";
+import ProtectedRoute from "../components/ProtectedRoute";
 import { AuthProvider } from "../context/AuthContext";
 
 function App() {
@@ -13,8 +15,23 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/capture" element={<Capture />} />
-          <Route path="/mahasiswa" element={<Mahasiswa />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route
+            path="/capture"
+            element={
+              <ProtectedRoute>
+                <Capture />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/mahasiswa"
+            element={
+              <ProtectedRoute>
+                <Mahasiswa />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
