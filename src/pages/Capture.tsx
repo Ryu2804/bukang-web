@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, Send, Pencil, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Send, Pencil, CheckCircle2, Download, Maximize2, Loader2 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import PhotoUpload from "../components/Capture/PhotoUpload";
 import StudentForm from "../components/Capture/StudentForm";
@@ -9,6 +9,7 @@ import { normalizeHometown } from "../utils/location";
 import { reverseOSM } from "../services/osm";
 import { useAuth } from "../context/AuthContext";
 import Breadcrumb, { buildCaptureBreadcrumb } from "../components/Breadcrumb";
+import ImageLightbox, { downloadImage } from "../components/ImageLightbox";
 
 interface StudentData {
   nrp: string;
@@ -67,6 +68,8 @@ export default function Capture() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [loadingExisting, setLoadingExisting] = useState(isEditing);
+  const [previewLightbox, setPreviewLightbox] = useState(false);
+  const [downloadingPreview, setDownloadingPreview] = useState(false);
 
   useEffect(() => {
     if (!isEditing) return;
@@ -342,22 +345,56 @@ export default function Capture() {
         {step === 3 && (
           <div className="bg-white p-6 rounded-lg shadow-md">
             <h2 className="text-xl font-bold mb-4">Ringkasan Data</h2>
+            <ImageLightbox
+              src={photo ? photo.dataUrl : existingPhotoUrl}
+              alt="Preview Foto"
+              open={previewLightbox}
+              onClose={() => setPreviewLightbox(false)}
+              fileName={`${student?.nrp || "foto"}-${student?.name?.replace(/\s+/g, "_") || "preview"}.jpg`}
+            />
             <div className="space-y-3 mb-6">
               {(photo || existingPhotoUrl) && (
                 <div>
                   <p className="text-sm text-gray-500">
                     Foto {isEditing && !photo && "(sebelumnya)"}
                   </p>
-                  <img
-                    src={photo ? photo.dataUrl : existingPhotoUrl}
-                    alt="Preview"
-                    className="w-full max-h-60 object-contain rounded-lg mt-1 border"
-                  />
-                  <div className="flex items-center gap-1 text-xs text-gray-400 mt-1">
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                    {photo
-                      ? `${photo.geotag.latitude.toFixed(6)}, ${photo.geotag.longitude.toFixed(6)}`
-                      : `${existingLat.toFixed(6)}, ${existingLng.toFixed(6)}`}
+                  <button
+                    onClick={() => setPreviewLightbox(true)}
+                    className="block w-full relative group focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg overflow-hidden mt-1 border"
+                    aria-label="Lihat foto fullscreen"
+                  >
+                    <img
+                      src={photo ? photo.dataUrl : existingPhotoUrl}
+                      alt="Preview"
+                      className="w-full max-h-60 object-contain group-hover:brightness-95 transition"
+                    />
+                    <span className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition flex items-end justify-center pb-2">
+                      <span className="bg-black/70 text-white text-xs px-3 py-1 rounded-full flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition">
+                        <Maximize2 size={12} /> Tap untuk lihat full
+                      </span>
+                    </span>
+                  </button>
+                  <div className="flex items-center justify-between gap-2 mt-2">
+                    <div className="flex items-center gap-1 text-xs text-gray-400">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                      {photo
+                        ? `${photo.geotag.latitude.toFixed(6)}, ${photo.geotag.longitude.toFixed(6)}`
+                        : `${existingLat.toFixed(6)}, ${existingLng.toFixed(6)}`}
+                    </div>
+                    <button
+                      onClick={async () => {
+                        const src = photo ? photo.dataUrl : existingPhotoUrl;
+                        if (!src) return;
+                        setDownloadingPreview(true);
+                        await downloadImage(src, `${student?.nrp || "foto"}-${student?.name?.replace(/\s+/g, "_") || "preview"}.jpg`);
+                        setDownloadingPreview(false);
+                      }}
+                      disabled={downloadingPreview}
+                      className="text-xs bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-1.5 rounded-full flex items-center gap-1 disabled:opacity-50"
+                    >
+                      {downloadingPreview ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+                      Download
+                    </button>
                   </div>
                 </div>
               )}

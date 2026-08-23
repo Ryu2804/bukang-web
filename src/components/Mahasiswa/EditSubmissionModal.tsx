@@ -1,10 +1,11 @@
 import { useEffect, useState, useMemo, useRef } from "react";
-import { X, Loader2, Trash2, Save, ImageIcon, MapPin, AlertCircle, CheckCircle, Globe } from "lucide-react";
+import { X, Loader2, Trash2, Save, ImageIcon, MapPin, AlertCircle, CheckCircle, Globe, Download, Maximize2 } from "lucide-react";
 import { apiUrl, authFetch } from "../../services/api";
 import PhotoUpload from "../Capture/PhotoUpload";
 import type { OverlayResult } from "../../services/overlay";
 import { normalizeHometown, parseHometown } from "../../utils/location";
 import { searchOSM, type OSMLocation } from "../../services/osm";
+import ImageLightbox, { downloadImage } from "../ImageLightbox";
 
 interface RosterEntry {
   nrp: string;
@@ -111,6 +112,8 @@ export default function EditSubmissionModal({ isOpen, onClose, entry, onSuccess 
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const hobiSuggestions = HOBI_OPTIONS.filter(
     (h) => h.toLowerCase().includes(hobiInput.toLowerCase()) && !hobi.includes(h)
@@ -285,8 +288,16 @@ export default function EditSubmissionModal({ isOpen, onClose, entry, onSuccess 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <div
+    <>
+      <ImageLightbox
+        src={displayPhoto || ""}
+        alt={`${entry.nrp} - ${entry.name}`}
+        open={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+        fileName={`${entry.nrp}-${entry.name.replace(/\s+/g, "_")}.jpg`}
+      />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
+        <div
         className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[95vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
@@ -344,12 +355,35 @@ export default function EditSubmissionModal({ isOpen, onClose, entry, onSuccess 
                   <>
                     {displayPhoto ? (
                       <div className="space-y-3">
-                        <div className="relative rounded-xl overflow-hidden border bg-gray-50">
-                          <img
-                            src={displayPhoto}
-                            alt="Foto mahasiswa"
-                            className="w-full max-h-[320px] object-contain bg-black"
-                          />
+                        <div className="relative rounded-xl overflow-hidden border bg-gray-50 group">
+                          <button
+                            onClick={() => setLightboxOpen(true)}
+                            className="block w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            aria-label="Lihat foto fullscreen"
+                          >
+                            <img
+                              src={displayPhoto}
+                              alt="Foto mahasiswa"
+                              className="w-full max-h-[320px] object-contain bg-black group-hover:brightness-95 transition"
+                            />
+                          </button>
+                          <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition flex items-end justify-center pb-3">
+                            <span className="bg-black/70 text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 backdrop-blur">
+                              <Maximize2 size={12} /> Tap untuk lihat full
+                            </span>
+                          </div>
+                          <button
+                            onClick={async () => {
+                              setDownloading(true);
+                              await downloadImage(displayPhoto, `${entry.nrp}-${entry.name.replace(/\s+/g, "_")}.jpg`);
+                              setDownloading(false);
+                            }}
+                            disabled={downloading}
+                            className="absolute top-3 left-3 bg-white/90 hover:bg-white text-gray-800 px-3 py-1.5 rounded-full text-xs font-medium shadow flex items-center gap-1.5 disabled:opacity-50 backdrop-blur"
+                          >
+                            {downloading ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+                            Download
+                          </button>
                           {newPhoto && (
                             <span className="absolute top-3 left-3 bg-green-500 text-white text-xs px-2.5 py-1 rounded-full font-medium flex items-center gap-1">
                               <CheckCircle size={12} /> Foto Baru
@@ -686,7 +720,8 @@ export default function EditSubmissionModal({ isOpen, onClose, entry, onSuccess 
             </button>
           )}
         </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

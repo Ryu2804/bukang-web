@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback, useMemo, memo, useRef } from "react";
-import { Search, Grid3X3, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, User, X, MapPin, Calendar, Heart, MessageCircle, Hash, FileDown, Loader2, Pencil, LogIn } from "lucide-react";
+import { Search, Grid3X3, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, User, X, MapPin, Calendar, Heart, MessageCircle, Hash, FileDown, Loader2, Pencil, LogIn, Download, Maximize2, ChevronDown, FileSpreadsheet, Images } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import EditSubmissionModal from "../components/Mahasiswa/EditSubmissionModal";
-import { downloadAll } from "../utils/export";
+import { downloadAll, downloadAllPhotos } from "../utils/export";
 import { apiUrl, authFetch } from "../services/api";
 import { parseHometown } from "../utils/location";
 import { useAuth } from "../context/AuthContext";
 import Breadcrumb from "../components/Breadcrumb";
+import ImageLightbox, { downloadImage } from "../components/ImageLightbox";
 
 interface RosterEntry {
   nrp: string;
@@ -125,33 +126,84 @@ function ProfileModal({ entry, onClose, onEdit }: { entry: RosterEntry; onClose:
       })
     : null;
 
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    if (!entry.photo_url) return;
+    setDownloading(true);
+    await downloadImage(entry.photo_url, `${entry.nrp}-${entry.name.replace(/\s+/g, "_")}.jpg`);
+    setDownloading(false);
+  };
+
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
-      onClick={onClose}
-    >
+    <>
+      <ImageLightbox
+        src={entry.photo_url}
+        alt={`${entry.name} - ${entry.nrp}`}
+        open={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+        fileName={`${entry.nrp}-${entry.name.replace(/\s+/g, "_")}.jpg`}
+      />
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
+        onClick={onClose}
       >
-        {/* Photo */}
-        <div className="relative">
-          {entry.submitted && entry.photo_url ? (
-            <img src={entry.photo_url} alt={entry.name} className="w-full aspect-[4/3] object-cover rounded-t-2xl" />
-          ) : (
-            <div className="w-full aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center rounded-t-2xl">
-              <div className="w-24 h-24 bg-gray-300 rounded-full flex items-center justify-center">
-                <User size={44} className="text-gray-400" />
+        <div
+          className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Photo — tap untuk full */}
+          <div className="relative group">
+            {entry.submitted && entry.photo_url ? (
+              <button
+                onClick={() => setLightboxOpen(true)}
+                className="block w-full relative focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-t-2xl overflow-hidden"
+                aria-label="Lihat foto fullscreen"
+              >
+                <img
+                  src={entry.photo_url}
+                  alt={entry.name}
+                  className="w-full aspect-[4/3] object-cover group-hover:brightness-[0.92] transition-all"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-3">
+                  <span className="bg-black/70 text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 backdrop-blur">
+                    <Maximize2 size={12} /> Tap untuk lihat full
+                  </span>
+                </div>
+                <div className="absolute bottom-3 right-3 flex gap-2">
+                  <span className="bg-black/60 text-white text-[11px] px-2 py-1 rounded-full backdrop-blur hidden sm:inline-flex items-center gap-1">
+                    <Maximize2 size={10} /> Full
+                  </span>
+                </div>
+              </button>
+            ) : (
+              <div className="w-full aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center rounded-t-2xl">
+                <div className="w-24 h-24 bg-gray-300 rounded-full flex items-center justify-center">
+                  <User size={44} className="text-gray-400" />
+                </div>
               </div>
-            </div>
-          )}
-          <button
-            onClick={onClose}
-            className="absolute top-3 right-3 w-8 h-8 bg-black/30 hover:bg-black/50 rounded-full flex items-center justify-center text-white transition-colors"
-          >
-            <X size={16} />
-          </button>
-        </div>
+            )}
+            <button
+              onClick={onClose}
+              className="absolute top-3 right-3 w-8 h-8 bg-black/30 hover:bg-black/50 rounded-full flex items-center justify-center text-white transition-colors backdrop-blur"
+            >
+              <X size={16} />
+            </button>
+            {entry.submitted && entry.photo_url && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDownload();
+                }}
+                disabled={downloading}
+                className="absolute top-3 left-3 bg-white/90 hover:bg-white text-gray-800 px-3 py-1.5 rounded-full text-xs font-medium shadow flex items-center gap-1.5 disabled:opacity-50 backdrop-blur"
+              >
+                {downloading ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+                Download
+              </button>
+            )}
+          </div>
 
         {/* Identity */}
         <div className="p-5">
@@ -209,13 +261,23 @@ function ProfileModal({ entry, onClose, onEdit }: { entry: RosterEntry; onClose:
           </div>
 
           {entry.submitted ? (
-            <button
-              onClick={() => onEdit(entry)}
-              className="mt-5 w-full bg-blue-600 text-white py-2.5 rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 text-sm font-medium shadow-sm"
-            >
-              <Pencil size={15} />
-              Edit / Hapus Foto
-            </button>
+            <div className="mt-5 space-y-2">
+              <button
+                onClick={handleDownload}
+                disabled={downloading}
+                className="w-full bg-white border border-gray-300 text-gray-700 py-2.5 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 text-sm font-medium"
+              >
+                {downloading ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+                Download Foto
+              </button>
+              <button
+                onClick={() => onEdit(entry)}
+                className="w-full bg-blue-600 text-white py-2.5 rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 text-sm font-medium shadow-sm"
+              >
+                <Pencil size={15} />
+                Edit / Hapus Foto
+              </button>
+            </div>
           ) : (
             <div className="mt-5 p-3 bg-gray-50 rounded-lg text-center text-sm text-gray-400">
               Data diri belum terkumpul
@@ -224,6 +286,7 @@ function ProfileModal({ entry, onClose, onEdit }: { entry: RosterEntry; onClose:
         </div>
       </div>
     </div>
+    </>
   );
 }
 
@@ -254,7 +317,10 @@ export default function Mahasiswa() {
   const [selectedEntry, setSelectedEntry] = useState<RosterEntry | null>(null);
   const [editEntry, setEditEntry] = useState<RosterEntry | null>(null);
   const [unauthorized, setUnauthorized] = useState(false);
-  const [exporting, setExporting] = useState<"csv" | "xlsx" | null>(null);
+  const [exporting, setExporting] = useState<"csv" | "xlsx" | "photos" | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [photoProgress, setPhotoProgress] = useState<{ current: number; total: number; fileName: string } | null>(null);
+  const exportRef = useRef<HTMLDivElement>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout>>(null);
   const mountedRef = useRef(true);
 
@@ -262,6 +328,16 @@ export default function Mahasiswa() {
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
   }, []);
+
+  useEffect(() => {
+    const onClickOutside = (e: MouseEvent) => {
+      if (exportRef.current && !exportRef.current.contains(e.target as Node)) {
+        setExportOpen(false);
+      }
+    };
+    if (exportOpen) document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [exportOpen]);
 
   const fetchRoster = useCallback(async (p: number, s: string, m: string, st: StatusFilter) => {
     // Jika sudah tidak auth, langsung arahkan ke halaman login/signup sendiri
@@ -316,12 +392,32 @@ export default function Mahasiswa() {
 
   const handleExport = async (format: "csv" | "xlsx") => {
     setExporting(format);
+    setExportOpen(false);
     try {
       await downloadAll(format, search, majorFilter, "submitted");
-    } catch {
-      // ignore
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Gagal export");
     } finally {
       setExporting(null);
+    }
+  };
+
+  const handleDownloadPhotos = async () => {
+    setExporting("photos");
+    setExportOpen(false);
+    setPhotoProgress({ current: 0, total: 0, fileName: "" });
+    try {
+      const result = await downloadAllPhotos(search, majorFilter, "submitted", (cur, total, name) => {
+        setPhotoProgress({ current: cur, total, fileName: name });
+      });
+      if (result.failed > 0) {
+        alert(`Download selesai: ${result.success} berhasil, ${result.failed} gagal dari ${result.total} foto`);
+      }
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Gagal download foto");
+    } finally {
+      setExporting(null);
+      setPhotoProgress(null);
     }
   };
 
@@ -414,23 +510,84 @@ export default function Mahasiswa() {
               <span className="w-2 h-2 bg-gray-400 rounded-full" />
               Sisa <strong>{data.total - data.submitted_count}</strong>
             </span>
-            <div className="ml-auto flex gap-2">
+            <div className="ml-auto relative" ref={exportRef}>
               <button
-                onClick={() => handleExport("csv")}
+                onClick={() => setExportOpen((o) => !o)}
                 disabled={!!exporting}
-                className="bg-white border px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1.5 text-xs transition-all hover:bg-gray-100 hover:border-gray-300 active:scale-95 active:bg-gray-200 disabled:opacity-50 disabled:pointer-events-none"
+                className="bg-blue-600 text-white border border-blue-600 px-3.5 py-1.5 rounded-lg shadow-sm flex items-center gap-1.5 text-xs font-medium hover:bg-blue-700 active:scale-95 disabled:opacity-50 disabled:pointer-events-none min-h-[32px]"
               >
-                {exporting === "csv" ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
-                CSV
+                {exporting ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
+                <span className="hidden sm:inline">
+                  {exporting === "photos" && photoProgress ? `Foto ${photoProgress.current}/${photoProgress.total}` : exporting ? "Memproses..." : "Export"}
+                </span>
+                <span className="sm:hidden">Export</span>
+                <ChevronDown size={12} className={`transition-transform ${exportOpen ? "rotate-180" : ""}`} />
               </button>
-              <button
-                onClick={() => handleExport("xlsx")}
-                disabled={!!exporting}
-                className="bg-white border px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1.5 text-xs transition-all hover:bg-gray-100 hover:border-gray-300 active:scale-95 active:bg-gray-200 disabled:opacity-50 disabled:pointer-events-none"
-              >
-                {exporting === "xlsx" ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
-                Excel
-              </button>
+              {exportOpen && (
+                <div className="absolute right-0 mt-2 w-72 bg-white border rounded-xl shadow-xl z-20 overflow-hidden">
+                  <div className="px-3.5 py-2.5 bg-gray-50 border-b">
+                    <p className="text-xs font-semibold text-gray-700">Export & Download</p>
+                    <p className="text-[11px] text-gray-500">Semua pakai nama NRP_Nama & kolom Link Foto</p>
+                  </div>
+                  <button
+                    onClick={() => handleExport("xlsx")}
+                    disabled={!!exporting}
+                    className="w-full text-left px-3.5 py-2.5 hover:bg-emerald-50 flex items-center gap-2.5 text-sm disabled:opacity-50"
+                  >
+                    <span className="w-9 h-9 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center shrink-0">
+                      <FileSpreadsheet size={16} />
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-sm font-medium text-gray-900">Export Excel</span>
+                      <span className="block text-xs text-gray-500 truncate">.xlsx + kolom Link Foto</span>
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => handleExport("csv")}
+                    disabled={!!exporting}
+                    className="w-full text-left px-3.5 py-2.5 hover:bg-blue-50 flex items-center gap-2.5 text-sm disabled:opacity-50"
+                  >
+                    <span className="w-9 h-9 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center shrink-0">
+                      <FileDown size={16} />
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-sm font-medium text-gray-900">Export CSV</span>
+                      <span className="block text-xs text-gray-500 truncate">.csv + kolom Link Foto</span>
+                    </span>
+                  </button>
+                  <div className="border-t my-1" />
+                  <button
+                    onClick={handleDownloadPhotos}
+                    disabled={!!exporting}
+                    className="w-full text-left px-3.5 py-2.5 hover:bg-violet-50 flex items-center gap-2.5 text-sm disabled:opacity-50"
+                  >
+                    <span className="w-9 h-9 bg-violet-100 text-violet-600 rounded-xl flex items-center justify-center shrink-0">
+                      <Images size={16} />
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-sm font-medium text-gray-900">Download Semua Foto</span>
+                      <span className="block text-xs text-gray-500 truncate">ZIP • Nama NRP_Nama.jpg</span>
+                    </span>
+                  </button>
+                  {photoProgress && exporting === "photos" && (
+                    <div className="px-3.5 py-2.5 bg-violet-50 border-t">
+                      <p className="text-xs text-violet-700 font-medium">
+                        Mengunduh {photoProgress.current}/{photoProgress.total}
+                      </p>
+                      <p className="text-[11px] text-violet-600 truncate">{photoProgress.fileName}</p>
+                      <div className="w-full bg-violet-200 rounded-full h-1.5 mt-1.5">
+                        <div
+                          className="bg-violet-600 h-1.5 rounded-full transition-all"
+                          style={{ width: `${(photoProgress.current / photoProgress.total) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <div className="px-3 py-1.5 bg-gray-50 text-[11px] text-gray-400 border-t text-center">
+                    Foto dinamai <span className="font-mono font-medium">NRP_Nama.jpg</span> • Kolom Link Foto di Excel/CSV
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
