@@ -8,6 +8,10 @@ import Mahasiswa from "../pages/Mahasiswa";
 import Auth from "../pages/Auth";
 import ProtectedRoute from "../components/ProtectedRoute";
 import { AuthProvider } from "../context/AuthContext";
+import { registerSW } from "../pwa";
+import InstallPrompt from "../components/InstallPrompt";
+
+registerSW();
 
 function App() {
   return (
@@ -33,6 +37,7 @@ function App() {
             }
           />
         </Routes>
+        <InstallPrompt />
       </BrowserRouter>
     </AuthProvider>
   );

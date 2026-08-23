@@ -1,0 +1,65 @@
+{
+  "name": "Bukang - Student Profile Collection",
+  "short_name": "Bukang",
+  "description": "Kumpulkan Profil Mahasiswa dalam satu tempat — offline & installable",
+  "theme_color": "#863bff",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "scope": "/",
+  "start_url": "/",
+  "orientation": "portrait-primary",
+  "categories": ["education", "productivity"],
+  "lang": "id",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-192x192-maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/pwa-512x512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Capture Foto",
+      "short_name": "Capture",
+      "description": "Ambil foto & isi profil mahasiswa",
+      "url": "/capture",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Mahasiswa",
+      "short_name": "Mahasiswa",
+      "description": "Lihat dashboard mahasiswa",
+      "url": "/mahasiswa",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
+}
