@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from "react";
-import { X, Loader2, Trash2, Save, ImageIcon, MapPin, AlertCircle, CheckCircle, Globe, Download, Maximize2 } from "lucide-react";
+import { X, Loader2, Trash2, Save, ImageIcon, MapPin, AlertCircle, CheckCircle, Globe, Download, Maximize2, Calendar, Cake } from "lucide-react";
 import { apiUrl, authFetch } from "../../services/api";
 import PhotoUpload from "../Capture/PhotoUpload";
 import type { OverlayResult } from "../../services/overlay";
@@ -16,6 +16,8 @@ interface RosterEntry {
   hometown: string | null;
   hobbies: string | null;
   first_impression: string | null;
+  tempat_lahir: string | null;
+  tanggal_lahir: string | null;
   submission_id: string | null;
   captured_at: string | null;
   latitude: number | null;
@@ -37,6 +39,8 @@ interface SubmissionDetail {
   hometown: string;
   hobbies: string;
   first_impression: string;
+  tempat_lahir: string | null;
+  tanggal_lahir: string | null;
   photo_url: string;
   longitude: number;
   latitude: number;
@@ -69,6 +73,8 @@ export default function EditSubmissionModal({ isOpen, onClose, entry, onSuccess 
 
   // form state
   const [asalDaerah, setAsalDaerah] = useState("");
+  const [tempatLahir, setTempatLahir] = useState("");
+  const [tanggalLahir, setTanggalLahir] = useState("");
   const [hobi, setHobi] = useState<string[]>([]);
   const [firstImpression, setFirstImpression] = useState("");
   const [hobiInput, setHobiInput] = useState("");
@@ -135,6 +141,8 @@ export default function EditSubmissionModal({ isOpen, onClose, entry, onSuccess 
         if (cancelled) return;
         setDetail(sub);
         setAsalDaerah(normalizeHometown(sub.hometown || "") || "");
+        setTempatLahir(sub.tempat_lahir || "");
+        setTanggalLahir(sub.tanggal_lahir ? sub.tanggal_lahir.slice(0, 10) : "");
         setHobi(sub.hobbies ? sub.hobbies.split(",").map((s) => s.trim()).filter(Boolean) : []);
         setFirstImpression(sub.first_impression || "");
         setExistingPhotoUrl(sub.photo_url || entry.photo_url || null);
@@ -166,6 +174,11 @@ export default function EditSubmissionModal({ isOpen, onClose, entry, onSuccess 
       setError("");
       setFetchError("");
       setShowDeleteConfirm(false);
+      setAsalDaerah("");
+      setTempatLahir("");
+      setTanggalLahir("");
+      setHobi([]);
+      setFirstImpression("");
     }
   }, [isOpen]);
 
@@ -177,7 +190,7 @@ export default function EditSubmissionModal({ isOpen, onClose, entry, onSuccess 
   const hasPhoto = !!displayPhoto;
 
   const canSave =
-    asalDaerah.trim() && hobi.length > 0 && firstImpression.trim() && hasPhoto && !saving && !deleting;
+    asalDaerah.trim() && tempatLahir.trim() && tanggalLahir.trim() && hobi.length > 0 && firstImpression.trim() && hasPhoto && !saving && !deleting;
 
   const addHobi = (h: string) => {
     if (!hobi.includes(h)) setHobi([...hobi, h]);
@@ -239,6 +252,8 @@ export default function EditSubmissionModal({ isOpen, onClose, entry, onSuccess 
         asal_daerah: normalizeHometown(asalDaerah.trim()),
         hobi,
         first_impression: firstImpression.trim(),
+        tempat_lahir: tempatLahir.trim(),
+        tanggal_lahir: tanggalLahir,
         longitude,
         latitude,
         captured_at: capturedAt,
@@ -555,6 +570,35 @@ export default function EditSubmissionModal({ isOpen, onClose, entry, onSuccess 
                       Contoh: <span className="font-medium">Riau</span> → otomatis <span className="font-medium">Pekanbaru, Riau</span> (Kota, Provinsi)
                     </p>
                   )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Tempat Lahir *</label>
+                    <div className="relative">
+                      <Cake size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={tempatLahir}
+                        onChange={(e) => setTempatLahir(e.target.value)}
+                        placeholder="Contoh: Surabaya"
+                        className="w-full pl-10 pr-3.5 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[44px]"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Tanggal Lahir *</label>
+                    <div className="relative">
+                      <Calendar size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                      <input
+                        type="date"
+                        value={tanggalLahir}
+                        onChange={(e) => setTanggalLahir(e.target.value)}
+                        max={new Date().toISOString().split("T")[0]}
+                        className="w-full pl-10 pr-3.5 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[44px]"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <div>

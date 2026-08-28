@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, memo, useRef } from "react";
-import { Search, Grid3X3, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, User, X, MapPin, Calendar, Heart, MessageCircle, Hash, FileDown, Loader2, Pencil, LogIn, Download, Maximize2, ChevronDown, FileSpreadsheet, Images } from "lucide-react";
+import { Search, Grid3X3, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, User, X, MapPin, Calendar, Heart, MessageCircle, Hash, FileDown, Loader2, Pencil, LogIn, Download, Maximize2, ChevronDown, FileSpreadsheet, Images, Cake } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import EditSubmissionModal from "../components/Mahasiswa/EditSubmissionModal";
@@ -19,6 +19,8 @@ interface RosterEntry {
   hometown: string | null;
   hobbies: string | null;
   first_impression: string | null;
+  tempat_lahir: string | null;
+  tanggal_lahir: string | null;
   submission_id: string | null;
   captured_at: string | null;
   latitude: number | null;
@@ -246,6 +248,12 @@ function ProfileModal({ entry, onClose, onEdit }: { entry: RosterEntry; onClose:
               }
               return <InfoRow icon={<MapPin size={16} />} label="Asal Daerah" value={entry.hometown} />;
             })()}
+            {entry.submitted && entry.tempat_lahir && (
+              <InfoRow icon={<Cake size={16} />} label="Tempat Lahir" value={entry.tempat_lahir} />
+            )}
+            {entry.submitted && entry.tanggal_lahir && (
+              <InfoRow icon={<Calendar size={16} />} label="Tanggal Lahir" value={new Date(entry.tanggal_lahir).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })} />
+            )}
             {entry.submitted && entry.hobbies && (
               <InfoRow icon={<Heart size={16} />} label="Hobi" value={entry.hobbies} />
             )}

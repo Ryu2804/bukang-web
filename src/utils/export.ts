@@ -8,6 +8,8 @@ interface ExportRow {
   major: string;
   status: string;
   asal_daerah: string;
+  tempat_lahir: string;
+  tanggal_lahir: string;
   hobi: string;
   first_impression: string;
   captured_at: string;
@@ -43,6 +45,8 @@ export async function fetchAllEntries(
     major: e.major,
     status: e.submitted ? "Terkumpul" : "Belum",
     asal_daerah: e.hometown ?? "",
+    tempat_lahir: e.tempat_lahir ?? "",
+    tanggal_lahir: e.tanggal_lahir ?? "",
     hobi: e.hobbies ?? "",
     first_impression: e.first_impression ?? "",
     captured_at: e.captured_at ?? "",
@@ -56,7 +60,7 @@ export async function fetchAllEntries(
 export function downloadCSV(rows: ExportRow[], filename: string) {
   const headers = [
     "NRP", "Nama", "Prodi", "Status",
-    "Asal Daerah", "Hobi", "First Impression",
+    "Asal Daerah", "Tempat Lahir", "Tanggal Lahir", "Hobi", "First Impression",
     "Captured At", "Latitude", "Longitude",
     "Link Foto",
   ];
@@ -65,7 +69,7 @@ export function downloadCSV(rows: ExportRow[], filename: string) {
     ...rows.map((r) =>
       [
         r.nrp, r.name, r.major, r.status,
-        r.asal_daerah, r.hobi, r.first_impression,
+        r.asal_daerah, r.tempat_lahir, r.tanggal_lahir, r.hobi, r.first_impression,
         r.captured_at, r.latitude, r.longitude,
         r.photo_link,
       ]
@@ -90,6 +94,8 @@ export function downloadXLSX(rows: ExportRow[], filename: string) {
     Prodi: r.major,
     Status: r.status,
     "Asal Daerah": r.asal_daerah,
+    "Tempat Lahir": r.tempat_lahir,
+    "Tanggal Lahir": r.tanggal_lahir,
     Hobi: r.hobi,
     "First Impression": r.first_impression,
     "Captured At": r.captured_at,
@@ -105,6 +111,8 @@ export function downloadXLSX(rows: ExportRow[], filename: string) {
     { wch: 28 }, // Prodi
     { wch: 12 }, // Status
     { wch: 22 }, // Asal Daerah
+    { wch: 16 }, // Tempat Lahir
+    { wch: 14 }, // Tanggal Lahir
     { wch: 20 }, // Hobi
     { wch: 24 }, // First Impression
     { wch: 20 }, // Captured At

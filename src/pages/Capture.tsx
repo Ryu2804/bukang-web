@@ -21,6 +21,8 @@ interface FormData {
   asalDaerah: string;
   hobi: string[];
   firstImpression: string;
+  tempatLahir: string;
+  tanggalLahir: string;
 }
 
 interface ExistingSubmission {
@@ -31,6 +33,8 @@ interface ExistingSubmission {
   hometown: string;
   hobbies: string;
   first_impression: string;
+  tempat_lahir: string | null;
+  tanggal_lahir: string | null;
   photo_url: string;
   longitude: number;
   latitude: number;
@@ -63,6 +67,8 @@ export default function Capture() {
     asalDaerah: "",
     hobi: [],
     firstImpression: "",
+    tempatLahir: "",
+    tanggalLahir: "",
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -89,6 +95,8 @@ export default function Capture() {
           asalDaerah: sub.hometown || "",
           hobi: sub.hobbies ? sub.hobbies.split(",") : [],
           firstImpression: sub.first_impression || "",
+          tempatLahir: sub.tempat_lahir || "",
+          tanggalLahir: sub.tanggal_lahir ? sub.tanggal_lahir.slice(0, 10) : "",
         });
         setExistingPhotoUrl(sub.photo_url || "");
         setExistingLat(sub.latitude);
@@ -172,6 +180,8 @@ export default function Capture() {
         asal_daerah: normalizeHometown(form.asalDaerah),
         hobi: form.hobi,
         first_impression: form.firstImpression,
+        tempat_lahir: form.tempatLahir.trim(),
+        tanggal_lahir: form.tanggalLahir,
         longitude,
         latitude,
         captured_at: capturedAt,
@@ -415,6 +425,16 @@ export default function Capture() {
                   <div>
                     <p className="text-sm text-gray-500">Asal Daerah</p>
                     <p className="font-medium">{form.asalDaerah}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-sm text-gray-500">Tempat Lahir</p>
+                      <p className="font-medium">{form.tempatLahir || "-"}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Tanggal Lahir</p>
+                      <p className="font-medium">{form.tanggalLahir ? new Date(form.tanggalLahir).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "-"}</p>
+                    </div>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Hobi</p>

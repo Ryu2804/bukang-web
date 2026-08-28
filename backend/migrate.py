@@ -33,6 +33,15 @@ def run():
                 conn.execute(text("ALTER TABLE students ADD COLUMN user_id VARCHAR REFERENCES users(id)"))
             added.append("user_id")
 
+        if "tempat_lahir" not in existing_cols:
+            conn.execute(text("ALTER TABLE students ADD COLUMN tempat_lahir VARCHAR"))
+            added.append("tempat_lahir")
+
+        if "tanggal_lahir" not in existing_cols:
+            t = "DATE" if dialect == "sqlite" else "DATE"
+            conn.execute(text(f"ALTER TABLE students ADD COLUMN tanggal_lahir {t}"))
+            added.append("tanggal_lahir")
+
         # Drop unique index on nrp (now scoped by user_id)
         for idx in indexes:
             if idx["name"] == "ix_students_nrp" and idx.get("unique"):

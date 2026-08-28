@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, String, DateTime, Text, Float, ForeignKey
+from sqlalchemy import Column, String, DateTime, Text, Float, ForeignKey, Date
 
 from app.db.base import Base
 
@@ -18,6 +18,8 @@ class StudentModel(Base):
     photo_url = Column(Text, nullable=True)
     hobbies = Column(Text, nullable=True)
     first_impression = Column(Text, nullable=True)
+    tempat_lahir = Column(String, nullable=True)
+    tanggal_lahir = Column(Date, nullable=True)
     longitude = Column(Float, nullable=True)
     latitude = Column(Float, nullable=True)
     captured_at = Column(DateTime, nullable=True)

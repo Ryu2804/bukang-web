@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel
 
@@ -11,6 +11,8 @@ class StudentUpdate(BaseModel):
     hometown: str | None = None
     hobbies: str | None = None
     first_impression: str | None = None
+    tempat_lahir: str | None = None
+    tanggal_lahir: date | None = None
     photo_url: str | None = None
     longitude: float | None = None
     latitude: float | None = None
@@ -22,6 +24,8 @@ class SubmissionRequest(BaseModel):
     asal_daerah: str
     hobi: list[str]
     first_impression: str
+    tempat_lahir: str
+    tanggal_lahir: date
     longitude: float
     latitude: float
     captured_at: datetime
@@ -36,6 +40,8 @@ class StudentResponse(BaseModel):
     hometown: str | None = None
     hobbies: str | None = None
     first_impression: str | None = None
+    tempat_lahir: str | None = None
+    tanggal_lahir: date | None = None
     photo_url: str | None = None
     longitude: float | None = None
     latitude: float | None = None

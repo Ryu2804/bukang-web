@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Search, X, Loader2, MapPin, Globe } from "lucide-react";
+import { Search, X, Loader2, MapPin, Globe, Calendar, Cake } from "lucide-react";
 import { apiUrl, authFetch } from "../../services/api";
 import { normalizeHometown, parseHometown } from "../../utils/location";
 import { searchOSM, type OSMLocation } from "../../services/osm";
@@ -8,6 +8,8 @@ interface FormData {
   asalDaerah: string;
   hobi: string[];
   firstImpression: string;
+  tempatLahir: string;
+  tanggalLahir: string;
 }
 
 interface Props {
@@ -50,6 +52,8 @@ export default function StudentForm({
   const [asalDaerah, setAsalDaerah] = useState(() =>
     initialForm?.asalDaerah ? normalizeHometown(initialForm.asalDaerah) : ""
   );
+  const [tempatLahir, setTempatLahir] = useState(initialForm?.tempatLahir ?? "");
+  const [tanggalLahir, setTanggalLahir] = useState(initialForm?.tanggalLahir ?? "");
   const [hobi, setHobi] = useState<string[]>(initialForm?.hobi ?? []);
   const [firstImpression, setFirstImpression] = useState(initialForm?.firstImpression ?? "");
   const [hobiInput, setHobiInput] = useState("");
@@ -118,8 +122,8 @@ export default function StudentForm({
   };
 
   useEffect(() => {
-    onFormChange({ asalDaerah, hobi, firstImpression });
-  }, [asalDaerah, hobi, firstImpression]);
+    onFormChange({ asalDaerah, hobi, firstImpression, tempatLahir, tanggalLahir });
+  }, [asalDaerah, hobi, firstImpression, tempatLahir, tanggalLahir]);
 
   useEffect(() => {
     if (initialNrp) handleLookupNrp();
@@ -150,7 +154,7 @@ export default function StudentForm({
   };
 
   const canSubmit =
-    nrpResolved && asalDaerah.trim() && hobi.length > 0 && firstImpression.trim();
+    nrpResolved && asalDaerah.trim() && tempatLahir.trim() && tanggalLahir.trim() && hobi.length > 0 && firstImpression.trim();
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-md">
@@ -334,6 +338,41 @@ export default function StudentForm({
             Contoh: <span className="font-medium">Riau</span> → otomatis <span className="font-medium">Pekanbaru, Riau</span> (Kota, Provinsi)
           </p>
         )}
+      </div>
+
+      {/* Tempat & Tanggal Lahir */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Tempat Lahir <span className="text-red-500">*</span>
+          </label>
+          <div className="relative">
+            <Cake size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <input
+              type="text"
+              value={tempatLahir}
+              onChange={(e) => setTempatLahir(e.target.value)}
+              placeholder="Contoh: Surabaya"
+              autoComplete="off"
+              className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[42px]"
+            />
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Tanggal Lahir <span className="text-red-500">*</span>
+          </label>
+          <div className="relative">
+            <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <input
+              type="date"
+              value={tanggalLahir}
+              onChange={(e) => setTanggalLahir(e.target.value)}
+              max={new Date().toISOString().split("T")[0]}
+              className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[42px]"
+            />
+          </div>
+        </div>
       </div>
 
       {/* Hobi — optimal HP: Enter langsung tambah */}

@@ -32,6 +32,8 @@ def create_submission(db: Session, user_id: str, data: SubmissionRequest) -> Stu
         hometown=hometown_normalized,
         hobbies=",".join(data.hobi),
         first_impression=data.first_impression,
+        tempat_lahir=data.tempat_lahir.strip() if data.tempat_lahir else None,
+        tanggal_lahir=data.tanggal_lahir,
         longitude=data.longitude,
         latitude=data.latitude,
         captured_at=data.captured_at,
@@ -94,6 +96,8 @@ def update_submission(db: Session, user_id: str, submission_id: str, data: Submi
     student.hometown = normalize_hometown(data.asal_daerah) or data.asal_daerah
     student.hobbies = ",".join(data.hobi)
     student.first_impression = data.first_impression
+    student.tempat_lahir = data.tempat_lahir.strip() if data.tempat_lahir else None
+    student.tanggal_lahir = data.tanggal_lahir
     student.longitude = data.longitude
     student.latitude = data.latitude
     student.captured_at = data.captured_at
@@ -165,6 +169,8 @@ def get_roster(
             "hometown": sub.hometown if sub else None,
             "hobbies": sub.hobbies if sub else None,
             "first_impression": sub.first_impression if sub else None,
+            "tempat_lahir": sub.tempat_lahir if sub else None,
+            "tanggal_lahir": sub.tanggal_lahir.isoformat() if sub and sub.tanggal_lahir else None,
             "submission_id": sub.id if sub else None,
             "captured_at": sub.captured_at.isoformat() if sub and sub.captured_at else None,
             "latitude": sub.latitude if sub else None,
