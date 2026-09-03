@@ -14,12 +14,15 @@ dependencies = [
     "python-multipart>=0.0.18",
     "psycopg2-binary>=2.9.0",
     "huggingface_hub>=0.27.0",
+    "certifi>=2024.12.14",
+    "httpx>=0.28.0",
+    "python-pptx>=1.0.0",
+    "Pillow>=10.0.0",
 ]
 
 [dependency-groups]
 dev = [
     "pytest>=8.0.0",
-    "httpx>=0.28.0",
 ]
 
 [tool.pytest.ini_options]

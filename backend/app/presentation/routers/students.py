@@ -1,4 +1,8 @@
+from datetime import date
+from typing import BinaryIO, Iterator
+
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status, Path
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -12,8 +16,18 @@ from app.presentation.schemas.student import (
     SubmissionRequest,
 )
 from app.application.use_cases import student_use_case
+from app.infrastructure.export.pptx_generator import generate_pptx
 
 router = APIRouter(prefix="/api/students", tags=["students"])
+PPTX_STREAM_CHUNK_SIZE = 1024 * 1024
+
+
+def stream_pptx(output: BinaryIO) -> Iterator[bytes]:
+    try:
+        while chunk := output.read(PPTX_STREAM_CHUNK_SIZE):
+            yield chunk
+    finally:
+        output.close()
 
 # --- Public endpoints (no auth) ---
 
@@ -87,6 +101,37 @@ def list_students(
     if nrp:
         return success(student_use_case.search_students_by_nrp(db, user_id, nrp))
     return success(student_use_case.get_students(db, user_id))
+
+
+@router.get(
+    "/export/pptx",
+    summary="Export submitted student profiles as a PowerPoint file",
+    responses={
+        200: {"description": "Generated PPTX file"},
+        404: {"description": "No matching submissions"},
+        **common_error,
+    },
+)
+def export_pptx(
+    search: str = Query("", description="Search by NRP or name"),
+    major: str = Query("", description="Filter by major (exact match)"),
+    db: Session = Depends(get_db),
+    user_id: str = Depends(get_current_user),
+):
+    students = student_use_case.get_students_for_export(db, user_id, search, major)
+    if not students:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Tidak ada submission yang cocok untuk diekspor",
+        )
+
+    output = generate_pptx(students)
+    filename = f"bukang-mahasiswa-{date.today().isoformat()}.pptx"
+    return StreamingResponse(
+        stream_pptx(output),
+        media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get(

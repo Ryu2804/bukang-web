@@ -9,6 +9,7 @@ import { parseHometown } from "../utils/location";
 import { useAuth } from "../context/AuthContext";
 import Breadcrumb from "../components/Breadcrumb";
 import ImageLightbox, { downloadImage } from "../components/ImageLightbox";
+import { fetchPptxExport, formatPptxProgress } from "../utils/pptxExport";
 
 interface RosterEntry {
   nrp: string;
@@ -325,9 +326,10 @@ export default function Mahasiswa() {
   const [selectedEntry, setSelectedEntry] = useState<RosterEntry | null>(null);
   const [editEntry, setEditEntry] = useState<RosterEntry | null>(null);
   const [unauthorized, setUnauthorized] = useState(false);
-  const [exporting, setExporting] = useState<"csv" | "xlsx" | "photos" | null>(null);
+  const [exporting, setExporting] = useState<"csv" | "xlsx" | "pptx" | "photos" | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [photoProgress, setPhotoProgress] = useState<{ current: number; total: number; fileName: string } | null>(null);
+  const [pptxElapsedSeconds, setPptxElapsedSeconds] = useState(0);
   const exportRef = useRef<HTMLDivElement>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout>>(null);
   const mountedRef = useRef(true);
@@ -346,6 +348,19 @@ export default function Mahasiswa() {
     if (exportOpen) document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, [exportOpen]);
+
+  useEffect(() => {
+    if (exporting !== "pptx") {
+      setPptxElapsedSeconds(0);
+      return;
+    }
+
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => {
+      setPptxElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [exporting]);
 
   const fetchRoster = useCallback(async (p: number, s: string, m: string, st: StatusFilter) => {
     // Jika sudah tidak auth, langsung arahkan ke halaman login/signup sendiri
@@ -426,6 +441,31 @@ export default function Mahasiswa() {
     } finally {
       setExporting(null);
       setPhotoProgress(null);
+    }
+  };
+
+  const handlePptxExport = async () => {
+    setExporting("pptx");
+    setExportOpen(false);
+    try {
+      const params = new URLSearchParams();
+      if (search) params.set("search", search);
+      if (majorFilter) params.set("major", majorFilter);
+      const query = params.toString();
+      const path = `/students/export/pptx${query ? `?${query}` : ""}`;
+      const { blob, filename } = await fetchPptxExport(apiUrl(path), authFetch);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Gagal membuat PPTX");
+    } finally {
+      setExporting(null);
     }
   };
 
@@ -535,7 +575,7 @@ export default function Mahasiswa() {
                 <div className="absolute right-0 mt-2 w-72 bg-white border rounded-xl shadow-xl z-20 overflow-hidden">
                   <div className="px-3.5 py-2.5 bg-gray-50 border-b">
                     <p className="text-xs font-semibold text-gray-700">Export & Download</p>
-                    <p className="text-[11px] text-gray-500">Semua pakai nama NRP_Nama & kolom Link Foto</p>
+                    <p className="text-[11px] text-gray-500">Export data, PowerPoint, dan kumpulan foto</p>
                   </div>
                   <button
                     onClick={() => handleExport("xlsx")}
@@ -561,6 +601,19 @@ export default function Mahasiswa() {
                     <span className="flex-1 min-w-0">
                       <span className="block text-sm font-medium text-gray-900">Export CSV</span>
                       <span className="block text-xs text-gray-500 truncate">.csv + kolom Link Foto</span>
+                    </span>
+                  </button>
+                  <button
+                    onClick={handlePptxExport}
+                    disabled={!!exporting}
+                    className="w-full text-left px-3.5 py-2.5 hover:bg-amber-50 flex items-center gap-2.5 text-sm disabled:opacity-50"
+                  >
+                    <span className="w-9 h-9 bg-amber-100 text-amber-700 rounded-xl flex items-center justify-center shrink-0">
+                      <FileDown size={16} />
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-sm font-medium text-gray-900">Export PowerPoint</span>
+                      <span className="block text-xs text-gray-500 truncate">.pptx • Filter nama & prodi</span>
                     </span>
                   </button>
                   <div className="border-t my-1" />
@@ -821,6 +874,28 @@ export default function Mahasiswa() {
         onClose={() => setEditEntry(null)}
         onSuccess={() => fetchRoster(page, search, majorFilter, statusFilter)}
       />
+      {exporting === "pptx" && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-4 left-1/2 z-[60] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 rounded-2xl border border-amber-200 bg-white p-4 shadow-2xl"
+        >
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+              <Loader2 size={20} className="animate-spin" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-900">Membuat PowerPoint</p>
+              <p className="mt-0.5 text-xs text-gray-600">
+                {formatPptxProgress(data?.submitted_count ?? 0, pptxElapsedSeconds)}
+              </p>
+              <p className="mt-1 text-[11px] text-gray-400">
+                Download dimulai otomatis. Jangan tutup halaman ini.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
