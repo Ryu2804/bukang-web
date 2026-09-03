@@ -10,3 +10,6 @@ psycopg2-binary>=2.9.0
 huggingface_hub>=0.27.0
 pytest>=8.0.0
 httpx>=0.28.0
+certifi>=2024.12.14
+python-pptx>=1.0.0
+Pillow>=10.0.0

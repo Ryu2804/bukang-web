@@ -1,4 +1,5 @@
 from fastapi import HTTPException, UploadFile, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.infrastructure.persistence.models.student import StudentModel as Student
@@ -130,6 +131,21 @@ def search_students_by_nrp(db: Session, user_id: str, nrp: str) -> list[Student]
         .order_by(Student.nrp)
         .all()
     )
+
+
+def get_students_for_export(
+    db: Session,
+    user_id: str,
+    search: str = "",
+    major: str = "",
+) -> list[Student]:
+    query = db.query(Student).filter(Student.user_id == user_id)
+    if search:
+        pattern = f"%{search}%"
+        query = query.filter(or_(Student.nrp.ilike(pattern), Student.name.ilike(pattern)))
+    if major:
+        query = query.filter(Student.major == major)
+    return query.order_by(Student.nrp).all()
 
 
 def get_roster(
