@@ -1,6 +1,5 @@
 import hashlib
 import io
-import random
 import ssl
 from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
@@ -39,7 +38,6 @@ FONT_SIZE_VALUE = Pt(18)
 COLOR_LABEL = RGBColor(0x00, 0x00, 0x00)
 COLOR_VALUE = RGBColor(0x33, 0x33, 0x33)
 COLOR_PHOTO_BORDER = RGBColor(0x00, 0x9E, 0x60)
-FIRST_IMPRESSIONS = ["keren", "baik", "jago", "ramah"]
 PHOTO_MAX_EDGE = 1600
 PHOTO_JPEG_QUALITY = 85
 PHOTO_DOWNLOAD_WORKERS = 16
@@ -355,7 +353,7 @@ def fill_slot(slide, slot, student, foto_bytes=None):
     prodi = student.get("prodi") or "-"
     asal = student.get("asal") or "-"
     hobi = student.get("hobi") or "-"
-    impression = random.choice(FIRST_IMPRESSIONS)
+    impression = student.get("first_impression") or "-"
 
     if foto_bytes:
         add_foto_with_border(slide, foto_bytes, slot)

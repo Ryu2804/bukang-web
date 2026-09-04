@@ -84,11 +84,7 @@ def test_export_pptx_streams_bounded_chunks_and_closes_temporary_output(client, 
     assert output.closed
 
 
-def test_export_pptx_uses_filtered_submissions_from_current_users_database(client, monkeypatch):
-    monkeypatch.setattr(
-        "app.infrastructure.export.pptx_generator.random.choice",
-        lambda _: "keren",
-    )
+def test_export_pptx_uses_filtered_submissions_from_current_users_database(client):
     owner_headers = _auth_headers(client, "pptx-owner")
     _submit_student(client, owner_headers, "5025251001", "Kota Surabaya")
     _submit_student(client, owner_headers, "5035251001", "Kota Malang")
@@ -113,7 +109,6 @@ def test_export_pptx_uses_filtered_submissions_from_current_users_database(clien
     assert len(slide_texts) == 1
     assert "Naura Rizky Ameira" in slide_texts[0]
     assert "Kota Surabaya" in slide_texts[0]
-    assert "keren" in slide_texts[0]
-    assert "Ramah dan seru" not in slide_texts[0]
+    assert "Ramah dan seru" in slide_texts[0]
     assert "Muhammad Faris Alfarrel" not in slide_texts[0]
     assert "Rekayasa Perangkat Lunak" not in slide_texts[0]
