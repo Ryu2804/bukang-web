@@ -115,6 +115,7 @@ def list_students(
 def export_pptx(
     search: str = Query("", description="Search by NRP or name"),
     major: str = Query("", description="Filter by major (exact match)"),
+    start_page: int = Query(1, ge=1, description="Starting page number for slide numbering"),
     db: Session = Depends(get_db),
     user_id: str = Depends(get_current_user),
 ):
@@ -125,7 +126,7 @@ def export_pptx(
             detail="Tidak ada submission yang cocok untuk diekspor",
         )
 
-    output = generate_pptx(students)
+    output = generate_pptx(students, start_page=start_page)
     filename = f"bukang-mahasiswa-{date.today().isoformat()}.pptx"
     return StreamingResponse(
         stream_pptx(output),

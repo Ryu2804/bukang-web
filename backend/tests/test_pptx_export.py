@@ -72,7 +72,7 @@ def test_export_pptx_streams_bounded_chunks_and_closes_temporary_output(client, 
     output = TrackingFile(b"x" * ((1024 * 1024 * 2) + 10))
     monkeypatch.setattr(
         "app.presentation.routers.students.generate_pptx",
-        lambda _students: output,
+        lambda _students, **_kwargs: output,
     )
 
     response = client.get("/api/students/export/pptx", headers=headers)

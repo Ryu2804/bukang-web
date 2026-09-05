@@ -18,6 +18,7 @@ from PIL import Image, ImageOps
 from pptx import Presentation
 from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE
+from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 from pptx.util import Inches, Pt
 
 from app.infrastructure.persistence.models.student import StudentModel
@@ -31,13 +32,18 @@ SCALE_X = SLIDE_WIDTH_INCHES / PDF_WIDTH
 SCALE_Y = SLIDE_HEIGHT_INCHES / PDF_HEIGHT
 FOTO_PADDING = 12
 LABEL_VALUE_GAP = 58
-BACKGROUND_PATH = Path(__file__).with_name("page3_clean_bg.png")
+BACKGROUND_PATH = Path(__file__).with_name("slide_background.png")
 FONT_NAME = "Garet"
-FONT_SIZE_LABEL = Pt(24)
-FONT_SIZE_VALUE = Pt(18)
+FONT_SIZE_LABEL = Pt(18)
+FONT_SIZE_VALUE = Pt(16)
+FONT_SIZE_PAGE_NUMBER = Pt(20)
 COLOR_LABEL = RGBColor(0x00, 0x00, 0x00)
 COLOR_VALUE = RGBColor(0x33, 0x33, 0x33)
 COLOR_PHOTO_BORDER = RGBColor(0x00, 0x9E, 0x60)
+COLOR_PAGE_NUMBER = RGBColor(0xFF, 0xFF, 0xFF)
+# Bounding box (PDF-space units, matches SLOT_* coordinates) of the rounded
+# page-number badge baked into the bottom-right corner of the background art.
+PAGE_NUMBER_BOX = (1675, 2410, 185, 115)
 PHOTO_MAX_EDGE = 1600
 PHOTO_JPEG_QUALITY = 85
 PHOTO_DOWNLOAD_WORKERS = 16
@@ -51,34 +57,34 @@ _SSL_CONTEXT_LOCK = Lock()
 
 SLOT_TOP = {
     "foto_outer": (296, 287, 1267, 493),
-    "label_nama": (207, 812),
-    "label_nrp": (207, 923),
-    "label_prodi": (207, 1035),
-    "label_asal": (207, 1147),
-    "label_hobi": (207, 1259),
-    "label_fi": (1101, 812),
-    "nama": (207, 812 + LABEL_VALUE_GAP, 850),
-    "nrp": (207, 923 + LABEL_VALUE_GAP, 850),
-    "prodi": (207, 1035 + LABEL_VALUE_GAP, 850),
-    "asal_daerah": (207, 1147 + LABEL_VALUE_GAP, 850),
-    "hobi": (207, 1259 + LABEL_VALUE_GAP, 850),
-    "first_impression": (1101, 812 + LABEL_VALUE_GAP, 560),
+    "label_nama": (207, 796),
+    "label_nrp": (207, 907),
+    "label_prodi": (207, 1019),
+    "label_asal": (207, 1131),
+    "label_hobi": (207, 1243),
+    "label_fi": (1101, 796),
+    "nama": (207, 796 + LABEL_VALUE_GAP, 850),
+    "nrp": (207, 907 + LABEL_VALUE_GAP, 850),
+    "prodi": (207, 1019 + LABEL_VALUE_GAP, 850),
+    "asal_daerah": (207, 1131 + LABEL_VALUE_GAP, 850),
+    "hobi": (207, 1243 + LABEL_VALUE_GAP, 850),
+    "first_impression": (1101, 796 + LABEL_VALUE_GAP, 560),
 }
 
 SLOT_BOTTOM = {
     "foto_outer": (296, 1393, 1267, 493),
-    "label_nama": (207, 1918),
-    "label_nrp": (207, 2030),
-    "label_prodi": (207, 2142),
-    "label_asal": (207, 2254),
-    "label_hobi": (207, 2366),
-    "label_fi": (1101, 1918),
-    "nama": (207, 1918 + LABEL_VALUE_GAP, 850),
-    "nrp": (207, 2030 + LABEL_VALUE_GAP, 850),
-    "prodi": (207, 2142 + LABEL_VALUE_GAP, 850),
-    "asal_daerah": (207, 2254 + LABEL_VALUE_GAP, 850),
-    "hobi": (207, 2366 + LABEL_VALUE_GAP, 850),
-    "first_impression": (1101, 1918 + LABEL_VALUE_GAP, 560),
+    "label_nama": (207, 1902),
+    "label_nrp": (207, 2014),
+    "label_prodi": (207, 2126),
+    "label_asal": (207, 2238),
+    "label_hobi": (207, 2350),
+    "label_fi": (1101, 1902),
+    "nama": (207, 1902 + LABEL_VALUE_GAP, 850),
+    "nrp": (207, 2014 + LABEL_VALUE_GAP, 850),
+    "prodi": (207, 2126 + LABEL_VALUE_GAP, 850),
+    "asal_daerah": (207, 2238 + LABEL_VALUE_GAP, 850),
+    "hobi": (207, 2350 + LABEL_VALUE_GAP, 850),
+    "first_impression": (1101, 1902 + LABEL_VALUE_GAP, 560),
 }
 
 
@@ -295,6 +301,22 @@ def add_text(
     paragraph.font.color.rgb = color
 
 
+def add_page_number(slide, page_number):
+    x, y, width, height = PAGE_NUMBER_BOX
+    left, top, box_width, box_height = pdf_to_inches(x, y, width, height)
+    text_box = slide.shapes.add_textbox(left, top, box_width, box_height)
+    text_frame = text_box.text_frame
+    text_frame.word_wrap = False
+    text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+    paragraph = text_frame.paragraphs[0]
+    paragraph.alignment = PP_ALIGN.CENTER
+    paragraph.text = f"{page_number:02d}"
+    paragraph.font.name = FONT_NAME
+    paragraph.font.size = FONT_SIZE_PAGE_NUMBER
+    paragraph.font.bold = True
+    paragraph.font.color.rgb = COLOR_PAGE_NUMBER
+
+
 def add_empty_foto_frame(slide, slot):
     x, y, width, height = slot["foto_outer"]
     left, top, outer_width, outer_height = pdf_to_inches(x, y, width, height)
@@ -411,6 +433,7 @@ def generate_pptx(
     photo_loader: Callable[[str | None], bytes | None] | None = None,
     background_path: Path = BACKGROUND_PATH,
     photo_cache_dir: Path | None = None,
+    start_page: int = 1,
 ) -> BinaryIO:
     presentation = Presentation()
     presentation.slide_width = Inches(SLIDE_WIDTH_INCHES)
@@ -476,7 +499,7 @@ def generate_pptx(
                         )
                     return optimized
 
-                for index in range(0, len(students), 2):
+                for slide_offset, index in enumerate(range(0, len(students), 2)):
                     slide = presentation.slides.add_slide(blank_layout)
                     slide.shapes.add_picture(
                         str(background_path),
@@ -485,6 +508,7 @@ def generate_pptx(
                         Inches(SLIDE_WIDTH_INCHES),
                         Inches(SLIDE_HEIGHT_INCHES),
                     )
+                    add_page_number(slide, start_page + slide_offset)
                     first = students[index]
                     fill_slot(
                         slide,

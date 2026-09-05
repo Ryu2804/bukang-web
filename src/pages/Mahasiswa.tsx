@@ -3,6 +3,7 @@ import { Search, Grid3X3, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import EditSubmissionModal from "../components/Mahasiswa/EditSubmissionModal";
+import PptxStartPageModal from "../components/Mahasiswa/PptxStartPageModal";
 import { downloadAll, downloadAllPhotos } from "../utils/export";
 import { apiUrl, authFetch } from "../services/api";
 import { parseHometown } from "../utils/location";
@@ -328,6 +329,7 @@ export default function Mahasiswa() {
   const [unauthorized, setUnauthorized] = useState(false);
   const [exporting, setExporting] = useState<"csv" | "xlsx" | "pptx" | "photos" | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
+  const [pptxPageModalOpen, setPptxPageModalOpen] = useState(false);
   const [photoProgress, setPhotoProgress] = useState<{ current: number; total: number; fileName: string } | null>(null);
   const [pptxElapsedSeconds, setPptxElapsedSeconds] = useState(0);
   const exportRef = useRef<HTMLDivElement>(null);
@@ -444,13 +446,13 @@ export default function Mahasiswa() {
     }
   };
 
-  const handlePptxExport = async () => {
+  const handlePptxExport = async (startPage: number) => {
     setExporting("pptx");
-    setExportOpen(false);
     try {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
       if (majorFilter) params.set("major", majorFilter);
+      params.set("start_page", String(startPage));
       const query = params.toString();
       const path = `/students/export/pptx${query ? `?${query}` : ""}`;
       const { blob, filename } = await fetchPptxExport(apiUrl(path), authFetch);
@@ -604,7 +606,10 @@ export default function Mahasiswa() {
                     </span>
                   </button>
                   <button
-                    onClick={handlePptxExport}
+                    onClick={() => {
+                      setExportOpen(false);
+                      setPptxPageModalOpen(true);
+                    }}
                     disabled={!!exporting}
                     className="w-full text-left px-3.5 py-2.5 hover:bg-amber-50 flex items-center gap-2.5 text-sm disabled:opacity-50"
                   >
@@ -873,6 +878,14 @@ export default function Mahasiswa() {
         entry={editEntry}
         onClose={() => setEditEntry(null)}
         onSuccess={() => fetchRoster(page, search, majorFilter, statusFilter)}
+      />
+      <PptxStartPageModal
+        isOpen={pptxPageModalOpen}
+        onClose={() => setPptxPageModalOpen(false)}
+        onConfirm={(startPage) => {
+          setPptxPageModalOpen(false);
+          handlePptxExport(startPage);
+        }}
       />
       {exporting === "pptx" && (
         <div
